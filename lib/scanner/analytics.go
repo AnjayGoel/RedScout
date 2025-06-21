@@ -35,7 +35,6 @@ func (s *Scanner) ComputeNamespaceStats() error {
 			"No namespace metrics found for prefix: %s",
 			strings.Join(s.State.CurrentPrefix, s.Config.Delimiter),
 		)
-		return nil
 	}
 
 	s.State.NamespaceStats = metrics
