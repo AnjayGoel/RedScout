@@ -10,8 +10,8 @@ you pinpoint hotspots with precision.
 
 ## How It Works
 
-It leverages three core Redis commands: `SCAN`, `MEMORY USAGE`, and `MONITOR` to assemble a namespace-level
-view of your cache. On top of these, Redmon accepts configurable inputs such as a custom delimiter for splitting key
+Redmon leverages three core Redis commands: `SCAN`, `MEMORY USAGE`, and `MONITOR` to assemble a namespace-level
+view of your cache. On top of these, it accepts configurable inputs such as a custom delimiter for splitting key
 hierarchies and regular expressions to automatically identify and infer id components within your keys.
 
 ## Requirements
