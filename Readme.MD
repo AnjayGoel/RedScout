@@ -1,16 +1,16 @@
 # Redmon - Redis Namespace Monitor
 
-Redmon is a monitoring tool for redis that provides namespace-level insights of your Redis database. Unlike
-traditional Redis monitoring tools that focus on server-level metrics, Redmon helps you understand which caches are
-consuming the most memory, which namespaces are most frequently accessed etc.
+Redmon is a Redis monitoring tool that provides namespace-level insights into your Redis database unlike
+traditional tools that focus more on server-level metrics. It breaks down memory usage, key TTLs, and OP/s by logical
+namespaces, giving you clear visibility into which parts of your application are driving Redis usage. Redmon can also
+handle deeply nested key patterns like user:<user-id>:messages:unread or tenant:acme:order:<order-id>:status, helping
+you pinpoint hotspots with precision.
 
 ## How It Works
 
-Redmon combines three Redis commands to provide namespace-level insights:
-
-- **`SCAN`** - Enumerates keys without blocking, groups by namespace
-- **`MEMORY USAGE`** - Measures precise memory consumption per key
-- **`MONITOR`** - Captures real-time operations and frequencies
+It leverages three core Redis commands: `SCAN`, `MEMORY USAGE`, and `MONITOR` to assemble a namespace-level
+view of your cache. On top of these, Redmon accepts configurable inputs such as a custom delimiter for splitting key
+hierarchies and regular expressions to automatically identify and infer id components within your keys.
 
 ## Requirements
 
