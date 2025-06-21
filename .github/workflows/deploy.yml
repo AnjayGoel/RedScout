@@ -15,11 +15,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.24.2'
 
       - name: Set up release version
         id: vars
-        run: echo "VERSION=$(date +v%Y%m%d%H%M%S)" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(date +v%Y.%m.%d)" >> $GITHUB_OUTPUT
 
       - name: Build binaries
         run: |
