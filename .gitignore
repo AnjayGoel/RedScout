@@ -24,3 +24,5 @@ go.work
 
 temp/
 
+*.log
+*redmon_log_*
