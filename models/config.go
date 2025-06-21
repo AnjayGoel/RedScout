@@ -10,6 +10,7 @@ import (
 type Config struct {
 	RedisHost       string
 	RedisPort       int
+	RedisUser       string
 	RedisPassword   string
 	RedisDB         int
 	UseTLS          bool
@@ -45,6 +46,7 @@ func DefaultConfig() Config {
 	return Config{
 		RedisHost:       host,
 		RedisPort:       port,
+		RedisUser:       "default",
 		RedisPassword:   password,
 		RedisDB:         0,
 		UseTLS:          true,

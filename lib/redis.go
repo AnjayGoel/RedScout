@@ -16,10 +16,12 @@ func RedisClientFromConfig(config *models.Config) (*redis.Client, error) {
 
 	addr := fmt.Sprintf("%s:%d", config.RedisHost, config.RedisPort)
 	client := redis.NewClient(&redis.Options{
-		Addr:      addr,
-		Password:  config.RedisPassword,
-		DB:        config.RedisDB,
-		TLSConfig: tlsConf,
+		Addr:       addr,
+		ClientName: "Redmon",
+		Username:   config.RedisUser,
+		Password:   config.RedisPassword,
+		DB:         config.RedisDB,
+		TLSConfig:  tlsConf,
 	})
 
 	err := client.Ping(context.Background()).Err()

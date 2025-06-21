@@ -14,6 +14,7 @@ func ParseFlags() models.Config {
 
 	flag.StringVar(&config.RedisHost, "host", config.RedisHost, "Redis host address")
 	flag.IntVar(&config.RedisPort, "port", config.RedisPort, "Redis port number")
+	flag.StringVar(&config.RedisUser, "username", config.RedisUser, "Redis username")
 	flag.StringVar(&config.RedisPassword, "password", config.RedisPassword, "Redis password")
 	flag.IntVar(&config.RedisDB, "db", config.RedisDB, "Redis database number")
 
