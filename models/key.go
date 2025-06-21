@@ -76,7 +76,11 @@ func (kp *KeyParser) IsA(k Key, prefix Key) bool {
 	}
 
 	for i := 0; i < len(prefix); i++ {
-		if (prefix[i] == patternPlaceholder && !kp.matchesPattern(k[i])) || k[i] != prefix[i] {
+		if prefix[i] == patternPlaceholder {
+			if !kp.matchesPattern(k[i]) {
+				return false
+			}
+		} else if k[i] != prefix[i] {
 			return false
 		}
 	}
