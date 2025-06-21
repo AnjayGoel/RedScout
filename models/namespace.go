@@ -58,9 +58,9 @@ func (r *NamespaceSnapshot) ToMetric(s *State) *NamespaceMetrics {
 	if s.TotalMonitorDuration > 0 {
 		for opType, count := range processed.Ops {
 			processed.Ops[opType] = count / s.TotalMonitorDuration.Seconds()
-			processed.Ops[TotalOp] += processed.Ops[opType]
 		}
 	}
+	processed.Ops[TotalOp] = processed.Ops[GetOp] + processed.Ops[SetOp] + processed.Ops[DelOp] + processed.Ops[EvalOp]
 
 	processed.Types = r.Types
 	return processed
