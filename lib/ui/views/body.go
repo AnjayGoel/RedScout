@@ -44,10 +44,11 @@ var namespaceSortKeyMap = map[rune]string{
 	'1': "Keys",
 	'2': "Memory",
 	'3': "TTL",
-	'4': "Get",
-	'5': "Set",
-	'6': "Del",
-	'7': "Total Ops",
+	'4': "% TTL",
+	'5': "Get",
+	'6': "Set",
+	'7': "Del",
+	'8': "Total Ops",
 }
 
 var slowLogSortKeyMap = map[rune]string{
@@ -142,7 +143,7 @@ func (b *BodyView) HandleInput(inp rune, state *models.State) {
 		b.SetActiveView(TabSpecialKeys)
 		return
 	}
-	if inp > '7' || inp < '1' {
+	if inp > '8' || inp < '1' {
 		return
 	}
 	key := ""

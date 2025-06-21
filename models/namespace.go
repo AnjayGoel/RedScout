@@ -75,6 +75,8 @@ func (d NamespaceMetricList) Sort(sortBy string) {
 			return d[i].EstKeys > d[j].EstKeys
 		case "TTL":
 			return d[i].AvgTTL > d[j].AvgTTL
+		case "% TTL":
+			return d[i].TTLPercent > d[j].TTLPercent
 		case "Get":
 			return d[i].Ops[GetOp] > d[j].Ops[GetOp]
 		case "Set":

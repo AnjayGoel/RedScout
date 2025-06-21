@@ -9,23 +9,24 @@ import (
 	"strings"
 )
 
-const StatsHeader = "[yellow]1[-] Keys  [yellow]2[-] Memory  [yellow]3[-] TTL  [yellow]4[-] GET  [yellow]5[-] SET  [yellow]6[-] DEL  [yellow]7[-] OPS  |  [yellow]Enter/→[-] Drill Down  [yellow]Backspace/←[-] Level Up  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
+const StatsHeader = "[yellow]1[-] Keys  [yellow]2[-] Memory  [yellow]3[-] Avg TTL  [yellow]4[-] % TTL  [yellow]5[-] GET  [yellow]6[-] SET  [yellow]7[-] DEL  [yellow]8[-] OPS  |  [yellow]Enter/→[-] Drill Down  [yellow]Backspace/←[-] Level Up  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
 
 func BuildStatsTable() *tview.Table {
 	table := tview.NewTable().SetFixed(1, 0)
-	table.SetTitle(" RawNamespaceStats RawNamespaceStats (Press 1-7 to sort) ").SetTitleAlign(tview.AlignLeft)
+	table.SetTitle(" Namespace Stats (Press 1-8 to sort) ").SetTitleAlign(tview.AlignLeft)
 	table.SetSelectable(true, false)
 	table.SetBorders(false)
 	return table
 }
 
 func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
-	headers := []string{"Namespace", "~Keys", "~Memory", "Avg TTL", "GET/s", "SET/s", "DEL/s", "Total Ops/s", "Types"}
+	headers := []string{"Namespace", "~Keys", "~Memory", "Avg TTL", "% TTL", "GET/s", "SET/s", "DEL/s", "Total Ops/s", "Types"}
 	colors := []tcell.Color{
 		tcell.ColorWhite,
 		tcell.ColorYellow,
 		tcell.ColorAqua,
 		tcell.ColorLightGreen,
+		tcell.ColorLightCyan,
 		tcell.ColorBlue,
 		tcell.ColorGreen,
 		tcell.ColorRed,
@@ -44,7 +45,7 @@ func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
 	table.Clear()
 	for i, h := range headers {
 		align := tview.AlignLeft
-		if i != 0 && i != 8 {
+		if i != 0 && i != (len(headers)-1) {
 			align = tview.AlignRight
 		}
 		cell := tview.NewTableCell(fmt.Sprintf("[white::b]%s", h)).
@@ -63,6 +64,7 @@ func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
 			fmt.Sprintf("%12s", utils.FormatNumber(float64(row.EstKeys))),
 			fmt.Sprintf("%12s", utils.FormatBytes(row.EstMemory)),
 			fmt.Sprintf("%12s", utils.FormatDuration(row.AvgTTL)),
+			fmt.Sprintf("%11.1f%%", row.TTLPercent*100),
 			fmt.Sprintf("%8.1f/s", row.Ops[models.GetOp]),
 			fmt.Sprintf("%8.1f/s", row.Ops[models.SetOp]),
 			fmt.Sprintf("%8.1f/s", row.Ops[models.DelOp]),
@@ -80,7 +82,7 @@ func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
 
 		for j, val := range values {
 			align := tview.AlignLeft
-			if j != 0 && j != 8 {
+			if j != 0 && j != (len(headers)-1) {
 				align = tview.AlignRight
 			}
 			cell := tview.NewTableCell(fmt.Sprintf("[%s]%s", colors[j], val)).
