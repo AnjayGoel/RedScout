@@ -5,8 +5,8 @@
 RedScout is a Redis monitoring tool that provides namespace-level insights into your Redis database unlike
 traditional tools that focus more on server-level metrics. It breaks down memory usage, key TTLs, and OP/s by logical
 namespaces, giving you clear visibility into which parts of your application are driving Redis usage. RedScout can also
-handle deeply nested key patterns like `user:<user-id>:messages:unread` or `user:<user-id>:order:<order-id>:status`, helping
-you pinpoint hotspots with precision.
+handle deeply nested key patterns like `user:<user-id>:messages:unread` or `user:<user-id>:order:<order-id>:status`,
+helping you pinpoint hotspots with precision.
 
 ## How It Works
 
@@ -42,6 +42,7 @@ Download the appropriate binary for your platform from the releases page.
 |-------------|--------|-----------|-------------------------------------------|
 | `-host`     | string | _(empty)_ | Redis host address                        |
 | `-port`     | int    | `6380`    | Redis port number                         |
+| `-username` | string | `default` | Redis username for authentication         |
 | `-password` | string | _(empty)_ | Redis password for authentication         |
 | `-db`       | int    | `0`       | Redis database number to analyze          |
 | `-tls`      | string | `false`   | Use TLS for Redis connection (true/false) |
