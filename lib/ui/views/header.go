@@ -3,9 +3,9 @@ package views
 import (
 	"fmt"
 	"github.com/rivo/tview"
-	"redmon/lib/ui/views/components"
-	"redmon/lib/utils"
-	"redmon/models"
+	"redscout/lib/ui/views/components"
+	"redscout/lib/utils"
+	"redscout/models"
 	"time"
 )
 

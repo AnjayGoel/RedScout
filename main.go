@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 	"os"
-	"redmon/lib"
-	"redmon/lib/ui"
+	"redscout/lib"
+	"redscout/lib/ui"
 )
 
 func main() {

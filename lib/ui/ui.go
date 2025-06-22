@@ -5,9 +5,9 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"log"
-	"redmon/lib/scanner"
-	"redmon/lib/ui/views"
-	"redmon/models"
+	"redscout/lib/scanner"
+	"redscout/lib/ui/views"
+	"redscout/models"
 	"time"
 )
 
@@ -50,7 +50,7 @@ func (ui *AppUI) createDisclaimerScreen() {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
 		SetText("[red]DISCLAIMER[-]\n\n" +
-			"[yellow]Redmon will run the 'MONITOR' command on your Redis instance.[-]\n" +
+			"[yellow]RedScout will run the 'MONITOR' command on your Redis instance.[-]\n" +
 			"[yellow]This can impact Redis performance. Use with caution on production environments.[-]\n\n" +
 			"[white]Do you want to continue?[white]\n\n" +
 			"[green]Y[-]es / [red]N[-]o")
@@ -94,7 +94,7 @@ func (ui *AppUI) createLoadingScreen() {
 	ui.loadingTextView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("[yellow]Loading Redis Monitor ⠋\n\n[white]Initializing...[-]")
+		SetText("[yellow]Loading RedScout ⠋\n\n[white]Initializing...[-]")
 	ui.loadingTextView.SetBorder(true)
 	ui.loadingTextView.SetBorderPadding(2, 2, 2, 2)
 
@@ -115,12 +115,12 @@ func (ui *AppUI) createLoadingScreen() {
 				ui.app.QueueUpdateDraw(func() {
 					var text string
 					if ui.scanner == nil || ui.scanner.State == nil {
-						text = fmt.Sprintf("[yellow]Loading Redis Monitor %c\n\n[white]Initializing...[-]", spinner[i%len(spinner)])
+						text = fmt.Sprintf("[yellow]Loading RedScout %c\n\n[white]Initializing...[-]", spinner[i%len(spinner)])
 					} else if ui.scanner.State.ScanComplete {
 						ticker.Stop()
 						return
 					} else {
-						text = fmt.Sprintf("[yellow]Loading Redis Monitor %c\n\n[white]%s[-]", spinner[i%len(spinner)], ui.scanner.State.Status)
+						text = fmt.Sprintf("[yellow]Loading RedScout %c\n\n[white]%s[-]", spinner[i%len(spinner)], ui.scanner.State.Status)
 					}
 					ui.loadingTextView.SetText(text)
 				})

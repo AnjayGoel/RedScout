@@ -1,4 +1,4 @@
-module redmon
+module redscout
 
 go 1.24
 

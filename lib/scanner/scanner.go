@@ -7,8 +7,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"log"
 	"os"
-	"redmon/lib"
-	"redmon/models"
+	"redscout/lib"
+	"redscout/models"
 	"sync"
 )
 
@@ -40,18 +40,18 @@ func NewScanner(cfg *models.Config) (*Scanner, error) {
 		return nil, err
 	}
 
-	logFile, err := os.CreateTemp(cfg.LogsDir, "redmon_log_")
+	logFile, err := os.CreateTemp(cfg.LogsDir, "redscout_log_")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logFile file: %w", err)
 	}
 	log.SetOutput(logFile)
 
-	monitorFile, err := os.CreateTemp(cfg.LogsDir, "redmon_monitor_")
+	monitorFile, err := os.CreateTemp(cfg.LogsDir, "redscout_monitor_")
 	if err != nil {
 		return nil, err
 	}
 
-	scanFile, err := os.CreateTemp(cfg.LogsDir, "redmon_scan_")
+	scanFile, err := os.CreateTemp(cfg.LogsDir, "redscout_scan_")
 
 	if err != nil {
 		return nil, err

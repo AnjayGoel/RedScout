@@ -1,7 +1,7 @@
 package models_test
 
 import (
-	"redmon/models"
+	"redscout/models"
 	"testing"
 )
 

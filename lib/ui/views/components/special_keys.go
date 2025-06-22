@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"redmon/lib/utils"
-	"redmon/models"
+	"redscout/lib/utils"
+	"redscout/models"
 )
 
 const SpecialKeysShortcutsText = "[yellow]B[-] Toggle Table  |  [yellow]T[-] Toggle View  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR   |  [yellow]Q[-] Quit"

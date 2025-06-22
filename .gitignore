@@ -25,4 +25,4 @@ go.work
 temp/
 
 *.log
-*redmon_log_*
+*redscout_log_*

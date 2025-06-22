@@ -2,8 +2,8 @@ package views
 
 import (
 	"github.com/rivo/tview"
-	"redmon/lib/ui/views/components"
-	"redmon/models"
+	"redscout/lib/ui/views/components"
+	"redscout/models"
 )
 
 type Tab string

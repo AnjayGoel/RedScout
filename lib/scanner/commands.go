@@ -6,8 +6,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"io"
 	"log"
-	"redmon/lib"
-	"redmon/models"
+	"redscout/lib"
+	"redscout/models"
 	"strings"
 	"time"
 )

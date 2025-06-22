@@ -2,7 +2,7 @@ package lib
 
 import (
 	"flag"
-	"redmon/models"
+	"redscout/models"
 	"regexp"
 	"strings"
 	"time"

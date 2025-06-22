@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/redis/go-redis/v9"
-	"redmon/models"
+	"redscout/models"
 )
 
 func RedisClientFromConfig(config *models.Config) (*redis.Client, error) {
@@ -17,7 +17,7 @@ func RedisClientFromConfig(config *models.Config) (*redis.Client, error) {
 	addr := fmt.Sprintf("%s:%d", config.RedisHost, config.RedisPort)
 	client := redis.NewClient(&redis.Options{
 		Addr:       addr,
-		ClientName: "Redmon",
+		ClientName: "redscout",
 		Username:   config.RedisUser,
 		Password:   config.RedisPassword,
 		DB:         config.RedisDB,

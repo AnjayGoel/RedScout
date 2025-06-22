@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"redmon/models"
+	"redscout/models"
 	"strings"
 )
 

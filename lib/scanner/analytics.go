@@ -5,7 +5,7 @@ import (
 	"container/heap"
 	"io"
 	"log"
-	"redmon/models"
+	"redscout/models"
 	"strconv"
 	"strings"
 )

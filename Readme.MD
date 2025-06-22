@@ -1,16 +1,16 @@
-# Redmon - Redis Namespace Monitor
+# RedScout - Redis Namespace Monitor
 
 ![Screenshot](assets/screenshot.png)
 
-Redmon is a Redis monitoring tool that provides namespace-level insights into your Redis database unlike
+RedScout is a Redis monitoring tool that provides namespace-level insights into your Redis database unlike
 traditional tools that focus more on server-level metrics. It breaks down memory usage, key TTLs, and OP/s by logical
-namespaces, giving you clear visibility into which parts of your application are driving Redis usage. Redmon can also
+namespaces, giving you clear visibility into which parts of your application are driving Redis usage. RedScout can also
 handle deeply nested key patterns like `user:<user-id>:messages:unread` or `user:<user-id>:order:<order-id>:status`, helping
 you pinpoint hotspots with precision.
 
 ## How It Works
 
-Redmon leverages three core Redis commands: `SCAN`, `MEMORY USAGE`, and `MONITOR` to assemble a namespace-level
+RedScout leverages three core Redis commands: `SCAN`, `MEMORY USAGE`, and `MONITOR` to assemble a namespace-level
 view of your cache. On top of these, it accepts configurable inputs such as a custom delimiter for splitting key
 hierarchies and regular expressions to automatically identify and infer id components within your keys.
 
@@ -25,7 +25,7 @@ Download the appropriate binary for your platform from the releases page.
 ## Usage
 
 ```bash
-./redmon \
+./redscout \
   -host redis.example.com \
   -port 6379 \
   -password "your-password" \
