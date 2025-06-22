@@ -41,7 +41,7 @@ Download the appropriate binary for your platform from the releases page.
 | Flag        | Type   | Default   | Description                               |
 |-------------|--------|-----------|-------------------------------------------|
 | `-host`     | string | _(empty)_ | Redis host address                        |
-| `-port`     | int    | `6380`    | Redis port number                         |
+| `-port`     | int    | `6379`    | Redis port number                         |
 | `-username` | string | `default` | Redis username for authentication         |
 | `-password` | string | _(empty)_ | Redis password for authentication         |
 | `-db`       | int    | `0`       | Redis database number to analyze          |
