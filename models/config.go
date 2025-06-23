@@ -49,7 +49,7 @@ func DefaultConfig() Config {
 		RedisUser:       "default",
 		RedisPassword:   password,
 		RedisDB:         0,
-		UseTLS:          true,
+		UseTLS:          false,
 		KeysScanSize:    5000,
 		MonitorDuration: 10 * time.Second,
 		RefreshInterval: 5 * time.Second,
