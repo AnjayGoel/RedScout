@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const patternPlaceholder = "<ID>"
+const patternPlaceholder = "{id}"
 
 type Key []string
 

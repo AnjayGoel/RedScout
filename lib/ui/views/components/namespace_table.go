@@ -2,24 +2,42 @@ package components
 
 import (
 	"fmt"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 	"redscout/lib/utils"
 	"redscout/models"
 	"strings"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 const StatsHeader = "[yellow]1[-] Keys  [yellow]2[-] Memory  [yellow]3[-] Avg TTL  [yellow]4[-] % TTL  [yellow]5[-] GET  [yellow]6[-] SET  [yellow]7[-] DEL  [yellow]8[-] OPS  |  [yellow]Enter/→[-] Drill Down  [yellow]Backspace/←[-] Level Up  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
 
-func BuildStatsTable() *tview.Table {
-	table := tview.NewTable().SetFixed(1, 0)
-	table.SetTitle(" Namespace Stats (Press 1-8 to sort) ").SetTitleAlign(tview.AlignLeft)
-	table.SetSelectable(true, false)
-	table.SetBorders(false)
-	return table
+type Namespace struct {
+	Title *tview.TextView
+	Table *tview.Table
+	Flex  *tview.Flex
 }
 
-func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
+func NewNamespace() *Namespace {
+	ns := &Namespace{}
+	ns.Table = tview.NewTable().SetFixed(1, 0)
+	ns.Table.SetTitle(" Namespace Stats (Press 1-8 to sort) ").SetTitleAlign(tview.AlignLeft)
+	ns.Table.SetSelectable(true, false)
+	ns.Table.SetBorders(false)
+
+	ns.Title = tview.NewTextView()
+	ns.Title.SetDynamicColors(true)
+	ns.Title.SetText("[yellow:black]/ root[-]")
+
+	ns.Flex = tview.NewFlex()
+	ns.Flex.SetDirection(tview.FlexRow)
+	ns.Flex.AddItem(ns.Title, 1, -1, false)
+	ns.Flex.AddItem(ns.Table, 0, 1, true)
+
+	return ns
+}
+
+func (ns *Namespace) Update(prefix models.Key, stats models.NamespaceMetricList) {
 	headers := []string{"Namespace", "~Keys", "~Memory", "Avg TTL", "% TTL", "GET/s", "SET/s", "DEL/s", "Total Ops/s", "Types"}
 	colors := []tcell.Color{
 		tcell.ColorWhite,
@@ -42,7 +60,7 @@ func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
 	}
 
 	// Add header row
-	table.Clear()
+	ns.Table.Clear()
 	for i, h := range headers {
 		align := tview.AlignLeft
 		if i != 0 && i != (len(headers)-1) {
@@ -54,7 +72,7 @@ func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
 			SetBackgroundColor(tcell.ColorTeal).
 			SetSelectable(false).
 			SetAlign(align)
-		table.SetCell(0, i, cell)
+		ns.Table.SetCell(0, i, cell)
 	}
 
 	// Add data rows and update max widths
@@ -90,7 +108,7 @@ func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
 				SetExpansion(0).
 				SetBackgroundColor(tcell.ColorBlack)
 
-			table.SetCell(i+1, j, cell)
+			ns.Table.SetCell(i+1, j, cell)
 		}
 	}
 
@@ -98,12 +116,18 @@ func PopulateStatsTable(table *tview.Table, stats models.NamespaceMetricList) {
 	totalWidth := 0
 	for i, width := range colWidths {
 		width += 6
-		table.SetCell(0, i, table.GetCell(0, i).SetExpansion(0))
-		table.SetCell(0, i, table.GetCell(0, i).SetMaxWidth(width))
+		ns.Table.SetCell(0, i, ns.Table.GetCell(0, i).SetExpansion(0))
+		ns.Table.SetCell(0, i, ns.Table.GetCell(0, i).SetMaxWidth(width))
 		totalWidth += width
 	}
 
 	// Set statsTable width to total width of columns
-	table.SetFixed(1, 0)
-	table.ScrollToBeginning()
+	ns.Table.SetFixed(1, 0)
+	ns.Table.ScrollToBeginning()
+	separator := " › "
+	if len(prefix) == 0 {
+		ns.Title.SetText("[yellow:black]/ root[-]")
+	} else {
+		ns.Title.SetText(fmt.Sprintf("[yellow:black]%s[-]", "/ root"+separator+strings.Join(prefix, separator)))
+	}
 }
