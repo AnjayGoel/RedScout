@@ -17,8 +17,8 @@ const (
 type BodyView struct {
 	Shortcuts       *tview.TextView
 	ContentFlex     *tview.Flex
-	namespaceTable  *tview.Table
-	slowLogTable    *tview.Table
+	namespace       *components.Namespace
+	slowLog         *components.SlowLogTable
 	activeView      Tab
 	TabBar          *tview.TextView
 	app             *tview.Application
@@ -28,15 +28,15 @@ type BodyView struct {
 func NewBodyView(app *tview.Application) *BodyView {
 	view := &BodyView{
 		app:             app,
-		Shortcuts:       buildShortcuts(),
-		ContentFlex:     buildContentFlex(),
-		namespaceTable:  components.BuildStatsTable(),
-		slowLogTable:    components.BuildSlowLogTable(),
-		activeView:      "namespace",
-		TabBar:          buildTabBar(),
+		Shortcuts:       newShortcuts(),
+		ContentFlex:     newContentFlex(),
+		namespace:       components.NewNamespace(),
+		slowLog:         components.NewSlowLogTable(),
+		activeView:      TabNamespace,
+		TabBar:          newTabBar(),
 		specialKeysView: components.NewSpecialKeysView(app),
 	}
-	view.SetActiveView("namespace")
+	view.SetActiveView(TabNamespace)
 	return view
 }
 
@@ -58,17 +58,17 @@ var slowLogSortKeyMap = map[rune]string{
 	'4': "Command",
 }
 
-func buildShortcuts() *tview.TextView {
+func newShortcuts() *tview.TextView {
 	return tview.NewTextView().
 		SetTextAlign(tview.AlignLeft).
 		SetDynamicColors(true)
 }
 
-func buildContentFlex() *tview.Flex {
+func newContentFlex() *tview.Flex {
 	return tview.NewFlex().SetDirection(tview.FlexColumn)
 }
 
-func buildTabBar() *tview.TextView {
+func newTabBar() *tview.TextView {
 	tabBar := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
@@ -80,7 +80,7 @@ func (b *BodyView) SetActiveView(view Tab) {
 
 	switch view {
 	case TabNamespace:
-		b.ContentFlex.Clear().AddItem(b.namespaceTable, 0, 2, true)
+		b.ContentFlex.Clear().AddItem(b.namespace.Flex, 0, 2, true)
 		b.Shortcuts.SetText(components.StatsHeader)
 		b.TabBar.SetText(
 			`[::b][white:teal]Namespace [white::-]` +
@@ -89,10 +89,10 @@ func (b *BodyView) SetActiveView(view Tab) {
 				`[white:black][-:-]` +
 				`[white] Big Keys/Hot Keys [-]`,
 		)
-		b.namespaceTable.Select(1, 0)
-		b.app.SetFocus(b.namespaceTable)
+		b.namespace.Table.Select(1, 0)
+		b.app.SetFocus(b.namespace.Table)
 	case TabSlowLog:
-		b.ContentFlex.Clear().AddItem(b.slowLogTable, 0, 2, true)
+		b.ContentFlex.Clear().AddItem(b.slowLog.Table, 0, 2, true)
 		b.Shortcuts.SetText(components.SlowLogHeader)
 		b.TabBar.SetText(
 			`[white]Namespace [-]` +
@@ -101,8 +101,8 @@ func (b *BodyView) SetActiveView(view Tab) {
 				`[white:black][-:-]` +
 				`[white] Big Keys/Hot Keys [-]`,
 		)
-		b.slowLogTable.Select(1, 0)
-		b.app.SetFocus(b.slowLogTable)
+		b.slowLog.Table.Select(1, 0)
+		b.app.SetFocus(b.slowLog.Table)
 	case TabSpecialKeys:
 		b.ContentFlex.Clear().AddItem(b.specialKeysView.Flex, 0, 2, true)
 		b.Shortcuts.SetText(components.SpecialKeysShortcutsText)
@@ -129,8 +129,8 @@ func (b *BodyView) ToggleView() {
 }
 
 func (b *BodyView) Update(data *models.State) {
-	components.PopulateSlowLogTable(b.slowLogTable, data.SlowLogs)
-	components.PopulateStatsTable(b.namespaceTable, data.NamespaceStats)
+	b.slowLog.Update(data.SlowLogs)
+	b.namespace.Update(data.CurrentPrefix, data.NamespaceStats)
 	b.specialKeysView.Update(data)
 }
 
@@ -168,5 +168,5 @@ func (b *BodyView) ActiveView() Tab {
 }
 
 func (b *BodyView) NamespaceTable() *tview.Table {
-	return b.namespaceTable
+	return b.namespace.Table
 }

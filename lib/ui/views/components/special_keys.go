@@ -18,8 +18,8 @@ type SpecialKeysView struct {
 }
 
 func NewSpecialKeysView(app *tview.Application) *SpecialKeysView {
-	bigKeyTable := BuildBigKeyTable()
-	hotKeyTable := BuildHotKeyTable()
+	bigKeyTable := newBigKeyTable()
+	hotKeyTable := newHotKeyTable()
 
 	// Add left padding to tables
 	bigKeyTable.SetOffset(0, 2)
@@ -58,8 +58,8 @@ func NewSpecialKeysView(app *tview.Application) *SpecialKeysView {
 }
 
 func (s *SpecialKeysView) Update(state *models.State) {
-	PopulateBigKeyTable(s.bigKeyTable, state.BigKeys)
-	PopulateHotKeyTable(s.hotKeyTable, state.HotKeys)
+	s.updateBigKeyTable(state.BigKeys)
+	s.updateHotKeyTable(state.HotKeys)
 }
 
 func (s *SpecialKeysView) Focus() {
@@ -67,7 +67,7 @@ func (s *SpecialKeysView) Focus() {
 	s.app.SetFocus(s.bigKeyTable)
 }
 
-func BuildBigKeyTable() *tview.Table {
+func newBigKeyTable() *tview.Table {
 	table := tview.NewTable().SetFixed(1, 0)
 	table.SetTitle(" Big Keys (Top N by Memory) ").SetTitleAlign(tview.AlignLeft)
 	table.SetSelectable(true, false)
@@ -75,14 +75,14 @@ func BuildBigKeyTable() *tview.Table {
 	return table
 }
 
-func PopulateBigKeyTable(table *tview.Table, bigKeys models.BigKeyList) {
+func (s *SpecialKeysView) updateBigKeyTable(bigKeys models.BigKeyList) {
 	headers := []string{"Key", "Size"}
 	colors := []tcell.Color{
 		tcell.ColorWhite,
 		tcell.ColorYellow,
 	}
 
-	table.Clear()
+	s.bigKeyTable.Clear()
 	for i, h := range headers {
 		cell := tview.NewTableCell(fmt.Sprintf("[white::b]%s", h)).
 			SetTextColor(tcell.ColorWhite).
@@ -90,7 +90,7 @@ func PopulateBigKeyTable(table *tview.Table, bigKeys models.BigKeyList) {
 			SetBackgroundColor(tcell.ColorAqua).
 			SetSelectable(false).
 			SetAlign(tview.AlignLeft)
-		table.SetCell(0, i, cell)
+		s.bigKeyTable.SetCell(0, i, cell)
 	}
 
 	for i, row := range bigKeys {
@@ -103,13 +103,13 @@ func PopulateBigKeyTable(table *tview.Table, bigKeys models.BigKeyList) {
 				SetAlign(tview.AlignLeft).
 				SetExpansion(0).
 				SetBackgroundColor(tcell.ColorBlack)
-			table.SetCell(i+1, j, cell)
+			s.bigKeyTable.SetCell(i+1, j, cell)
 		}
 	}
-	table.ScrollToBeginning()
+	s.bigKeyTable.ScrollToBeginning()
 }
 
-func BuildHotKeyTable() *tview.Table {
+func newHotKeyTable() *tview.Table {
 	table := tview.NewTable().SetFixed(1, 0)
 	table.SetTitle(" Hot Keys (Top N by Ops) ").SetTitleAlign(tview.AlignLeft)
 	table.SetSelectable(true, false)
@@ -117,14 +117,14 @@ func BuildHotKeyTable() *tview.Table {
 	return table
 }
 
-func PopulateHotKeyTable(table *tview.Table, hotKeys models.HotKeyList) {
+func (s *SpecialKeysView) updateHotKeyTable(hotKeys models.HotKeyList) {
 	headers := []string{"Key", "Ops"}
 	colors := []tcell.Color{
 		tcell.ColorWhite,
 		tcell.ColorAqua,
 	}
 
-	table.Clear()
+	s.hotKeyTable.Clear()
 	for i, h := range headers {
 		cell := tview.NewTableCell(fmt.Sprintf("[white::b]%s", h)).
 			SetTextColor(tcell.ColorWhite).
@@ -132,7 +132,7 @@ func PopulateHotKeyTable(table *tview.Table, hotKeys models.HotKeyList) {
 			SetBackgroundColor(tcell.ColorAqua).
 			SetSelectable(false).
 			SetAlign(tview.AlignLeft)
-		table.SetCell(0, i, cell)
+		s.hotKeyTable.SetCell(0, i, cell)
 	}
 
 	for i, row := range hotKeys {
@@ -145,8 +145,8 @@ func PopulateHotKeyTable(table *tview.Table, hotKeys models.HotKeyList) {
 				SetAlign(tview.AlignLeft).
 				SetExpansion(0).
 				SetBackgroundColor(tcell.ColorBlack)
-			table.SetCell(i+1, j, cell)
+			s.hotKeyTable.SetCell(i+1, j, cell)
 		}
 	}
-	table.ScrollToBeginning()
+	s.hotKeyTable.ScrollToBeginning()
 }

@@ -10,15 +10,19 @@ import (
 
 const SlowLogHeader = "[yellow]1[-] ID  [yellow]2[-] Timestamp  [yellow]3[-] Duration  [yellow]4[-] Command  [yellow] |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
 
-func BuildSlowLogTable() *tview.Table {
+type SlowLogTable struct {
+	Table *tview.Table
+}
+
+func NewSlowLogTable() *SlowLogTable {
 	table := tview.NewTable().SetFixed(1, 0)
 	table.SetTitle(" Slow Log (Press 1-5 to sort) ").SetTitleAlign(tview.AlignLeft)
 	table.SetSelectable(true, false)
 	table.SetBorders(false)
-	return table
+	return &SlowLogTable{table}
 }
 
-func PopulateSlowLogTable(table *tview.Table, slowLogs models.SlowLogList) {
+func (sl *SlowLogTable) Update(slowLogs models.SlowLogList) {
 	if slowLogs == nil || len(slowLogs) == 0 {
 		return
 	}
@@ -36,7 +40,7 @@ func PopulateSlowLogTable(table *tview.Table, slowLogs models.SlowLogList) {
 	colWidths := []int{8, 20, 12, 12, 30}
 
 	// Add header row
-	table.Clear()
+	sl.Table.Clear()
 	for i, h := range headers {
 		align := tview.AlignLeft
 		if i != 0 && i != 4 {
@@ -48,7 +52,7 @@ func PopulateSlowLogTable(table *tview.Table, slowLogs models.SlowLogList) {
 			SetBackgroundColor(tcell.ColorTeal).
 			SetSelectable(false).
 			SetAlign(align)
-		table.SetCell(0, i, cell)
+		sl.Table.SetCell(0, i, cell)
 	}
 
 	// Add data rows
@@ -87,7 +91,7 @@ func PopulateSlowLogTable(table *tview.Table, slowLogs models.SlowLogList) {
 				SetExpansion(0).
 				SetBackgroundColor(tcell.ColorBlack)
 
-			table.SetCell(i+1, j, cell)
+			sl.Table.SetCell(i+1, j, cell)
 		}
 	}
 
@@ -95,11 +99,11 @@ func PopulateSlowLogTable(table *tview.Table, slowLogs models.SlowLogList) {
 	totalWidth := 0
 	for i, width := range colWidths {
 		width += 2 // Add padding
-		table.SetCell(0, i, table.GetCell(0, i).SetExpansion(0))
-		table.SetCell(0, i, table.GetCell(0, i).SetMaxWidth(width))
+		sl.Table.SetCell(0, i, sl.Table.GetCell(0, i).SetExpansion(0))
+		sl.Table.SetCell(0, i, sl.Table.GetCell(0, i).SetMaxWidth(width))
 		totalWidth += width
 	}
 
 	// Set table width to total width of columns
-	table.SetFixed(1, 0)
+	sl.Table.SetFixed(1, 0)
 }
