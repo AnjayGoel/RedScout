@@ -79,6 +79,7 @@ func (ui *AppUI) start() {
 	go func() {
 		s, err := scanner.NewScanner(ui.config)
 		if err != nil {
+			ui.app.Stop()
 			log.Fatalf("Error initializing scanner: %v", err)
 		}
 		ui.scanner = s
