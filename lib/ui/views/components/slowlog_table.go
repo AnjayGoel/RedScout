@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const SlowLogHeader = "[cyan]Sort:[-] [yellow]1[-] ID  [yellow]2[-] Timestamp  [yellow]3[-] Duration  [yellow]4[-] Command  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
+const SlowLogHeader = "[yellow]Sort:[-] [yellow]1[-] ID  [yellow]2[-] Timestamp  [yellow]3[-] Duration  [yellow]4[-] Command  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
 
 type SlowLogTable struct {
 	Table *tview.Table
@@ -19,6 +19,7 @@ func NewSlowLogTable() *SlowLogTable {
 	table.SetTitle(" Slow Log (Press 1-5 to sort) ").SetTitleAlign(tview.AlignLeft)
 	table.SetSelectable(true, false)
 	table.SetBorders(false)
+	table.SetBorderPadding(0, 0, 1, 0)
 	return &SlowLogTable{table}
 }
 

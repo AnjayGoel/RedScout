@@ -10,7 +10,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-const StatsHeader = "[cyan]Sort:[-] [yellow]1[-] Keys  [yellow]2[-] Memory  [yellow]3[-] Avg TTL  [yellow]4[-] % TTL  [yellow]5[-] GET  [yellow]6[-] SET  [yellow]7[-] DEL  [yellow]8[-] OPS  |  [yellow]Enter/→[-] Drill Down  [yellow]Backspace/←[-] Level Up  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
+const StatsHeader = "[yellow]Sort:[-] [yellow]1[-] Keys  [yellow]2[-] Memory  [yellow]3[-] Avg TTL  [yellow]4[-] % TTL  [yellow]5[-] GET  [yellow]6[-] SET  [yellow]7[-] DEL  [yellow]8[-] OPS  |  [yellow]Enter/→[-] Drill Down  [yellow]Backspace/←[-] Level Up  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
 
 type Namespace struct {
 	Title *tview.TextView
@@ -31,6 +31,7 @@ func NewNamespace() *Namespace {
 
 	ns.Flex = tview.NewFlex()
 	ns.Flex.SetDirection(tview.FlexRow)
+	ns.Flex.SetBorderPadding(0, 0, 1, 0)
 	ns.Flex.AddItem(ns.Title, 1, -1, false)
 	ns.Flex.AddItem(ns.Table, 0, 1, true)
 

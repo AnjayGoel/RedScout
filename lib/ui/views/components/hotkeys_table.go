@@ -15,6 +15,7 @@ func NewHotKeyTable() *tview.Table {
 	table.SetTitle(" Hot Keys (Top N by Ops) ").SetTitleAlign(tview.AlignLeft)
 	table.SetSelectable(true, false)
 	table.SetBorders(false)
+	table.SetBorderPadding(0, 0, 1, 0)
 	return table
 }
 
