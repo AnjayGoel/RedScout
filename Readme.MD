@@ -26,42 +26,42 @@ Download the appropriate binary for your platform from the releases page.
 
 ```bash
 ./redscout \
-  -host redis.example.com \
-  -port 6380 \
-  -password "your-password" \
-  -tls true \
-  -monitor-duration 30 \
-  -scan-size 10000
+  -h redis.example.com \
+  -p 6380 \
+  -a "your-password" \
+  --tls \
+  --monitor-duration 30 \
+  --scan-size 10000
 ```
 
 ## Configuration Options
 
 ### Connection Settings
 
-| Flag        | Type   | Default   | Description                               |
-|-------------|--------|-----------|-------------------------------------------|
-| `-host`     | string | _(empty)_ | Redis host address                        |
-| `-port`     | int    | `6379`    | Redis port number                         |
-| `-username` | string | `default` | Redis username for authentication         |
-| `-password` | string | _(empty)_ | Redis password for authentication         |
-| `-db`       | int    | `0`       | Redis database number to analyze          |
-| `-tls`      | string | `false`   | Use TLS for Redis connection (true/false) |
+| Flag    | Type   | Default   | Description                                              |
+|---------|--------|-----------|----------------------------------------------------------|
+| `-h`    | string | _(empty)_ | Redis host address                                       |
+| `-p`    | int    | `6379`    | Redis port number                                        |
+| `-u`    | string | `default` | Redis username for authentication                        |
+| `-a`    | string | _(empty)_ | Redis password for authentication                        |
+| `-n`    | int    | `0`       | Redis database number to analyze                         |
+| `--tls` | bool   | `false`   | Use TLS for Redis connection (presence enables TLS)      |
 
 ### Analysis Settings
 
-| Flag                | Type   | Default   | Description                                                   |
-|---------------------|--------|-----------|---------------------------------------------------------------|
-| `-delimiter`        | string | `:`       | Delimiter for separating Redis keys into namespaces           |
-| `-scan-size`        | int    | `5000`    | Number of keys to scan                                        |
-| `-monitor-duration` | int    | `10`      | Duration in seconds to run the `monitor` command              |
-| `-refresh-interval` | int    | `5`       | Interval in seconds between Redis info refreshes              |
-| `-id-regex`         | string | _(empty)_ | Space-separated list of regex patterns to infer IDs from keys |
+| Flag                   | Type   | Default   | Description                                                   |
+|------------------------|--------|-----------|---------------------------------------------------------------|
+| `--delimiter`          | string | `:`       | Delimiter for separating Redis keys into namespaces           |
+| `--scan-size`          | int    | `5000`    | Number of keys to scan                                        |
+| `--monitor-duration`   | int    | `10`      | Duration in seconds to run the `monitor` command              |
+| `--refresh-interval`   | int    | `5`       | Interval in seconds between Redis info refreshes              |
+| `--id-regex`           | string | _(empty)_ | Space-separated list of regex patterns to infer IDs from keys |
 
 ### Output Settings
 
-| Flag        | Type   | Default         | Description                                |
-|-------------|--------|-----------------|--------------------------------------------|
-| `-logs-dir` | string | _OS's temp dir_ | Directory to store temporary analysis logs |
+| Flag          | Type   | Default         | Description                                |
+|---------------|--------|-----------------|--------------------------------------------|
+| `--logs-dir`  | string | _OS's temp dir_ | Directory to store temporary analysis logs |
 
 ## Notes
 

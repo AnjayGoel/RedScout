@@ -12,15 +12,16 @@ import (
 func ParseFlags() models.Config {
 	config := models.DefaultConfig()
 
-	flag.StringVar(&config.RedisHost, "host", config.RedisHost, "Redis host address")
-	flag.IntVar(&config.RedisPort, "port", config.RedisPort, "Redis port number")
-	flag.StringVar(&config.RedisUser, "username", config.RedisUser, "Redis username")
-	flag.StringVar(&config.RedisPassword, "password", config.RedisPassword, "Redis password")
-	flag.IntVar(&config.RedisDB, "db", config.RedisDB, "Redis database number")
+	// Redis connection flags (standard redis-cli shorthands)
+	flag.StringVar(&config.RedisHost, "h", config.RedisHost, "Redis host address")
+	flag.IntVar(&config.RedisPort, "p", config.RedisPort, "Redis port number")
+	flag.StringVar(&config.RedisUser, "u", config.RedisUser, "Redis username")
+	flag.StringVar(&config.RedisPassword, "a", config.RedisPassword, "Redis password")
+	flag.IntVar(&config.RedisDB, "n", config.RedisDB, "Redis database number")
 
-	var useTLS string
-	flag.StringVar(&useTLS, "tls", "", "Use TLS for Redis connection")
+	flag.BoolVar(&config.UseTLS, "tls", config.UseTLS, "Use TLS for Redis connection")
 
+	// Application-specific flags (long form only)
 	flag.Int64Var(&config.KeysScanSize, "scan-size", config.KeysScanSize, "Number of keys to scan per iteration")
 
 	var monitorDuration int
@@ -30,17 +31,12 @@ func ParseFlags() models.Config {
 	flag.IntVar(&refreshInterval, "refresh-interval", int(config.RefreshInterval.Seconds()), "Interval in seconds between Redis info refreshes")
 
 	flag.StringVar(&config.Delimiter, "delimiter", config.Delimiter, "Delimiter for separating redis keys")
-
 	flag.StringVar(&config.LogsDir, "logs-dir", config.LogsDir, "Directory to store logs")
 
 	idRegexInput := ""
 	flag.StringVar(&idRegexInput, "id-regex", "", "space seperated list of regex to infer IDs from keys")
 
 	flag.Parse()
-
-	if useTLS != "" {
-		config.UseTLS = strings.ToLower(useTLS) == "true"
-	}
 
 	if monitorDuration > 0 {
 		config.MonitorDuration = time.Duration(monitorDuration) * time.Second
