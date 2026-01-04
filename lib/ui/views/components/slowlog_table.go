@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const SlowLogHeader = "[yellow]1[-] ID  [yellow]2[-] Timestamp  [yellow]3[-] Duration  [yellow]4[-] Command  [yellow] |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
+const SlowLogHeader = "[cyan]Sort:[-] [yellow]1[-] ID  [yellow]2[-] Timestamp  [yellow]3[-] Duration  [yellow]4[-] Command  |  [yellow]S[-] +SCAN  |  [yellow]M[-] +MONITOR |  [yellow]T[-] Toggle View  |  [yellow]Q[-] Quit"
 
 type SlowLogTable struct {
 	Table *tview.Table
