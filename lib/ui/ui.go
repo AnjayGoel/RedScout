@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"log"
 	"redscout/lib/scanner"
 	"redscout/lib/ui/views"
 	"redscout/models"
@@ -75,13 +74,42 @@ func (ui *AppUI) createDisclaimerScreen() {
 	})
 }
 
+func (ui *AppUI) createErrorScreen(errorMsg string) {
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
+
+	errorText := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetText(fmt.Sprintf("[red]ERROR[-]\n\n[white]%s[-]\n\n[green]R[-]etry / [red]Q[-]uit", errorMsg))
+	errorText.SetBorder(true)
+	errorText.SetBorderPadding(2, 2, 2, 2)
+
+	flex.AddItem(errorText, 0, 1, false)
+	ui.app.QueueUpdateDraw(func() {
+		ui.app.SetRoot(flex, true)
+	})
+
+	// Set up input capture for error screen
+	ui.app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Rune() {
+		case 'r', 'R', '\r':
+			ui.start()
+			return nil
+		case 'q', 'Q':
+			ui.app.Stop()
+			return nil
+		}
+		return e
+	})
+}
+
 func (ui *AppUI) start() {
 	ui.createLoadingScreen()
 	go func() {
 		s, err := scanner.NewScanner(ui.config)
 		if err != nil {
-			ui.app.Stop()
-			log.Fatalf("Error initializing scanner: %v", err)
+			ui.createErrorScreen(fmt.Sprintf("Error initializing scanner:\n%v", err))
+			return
 		}
 		ui.scanner = s
 
