@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"redscout/lib/scanner"
 	"redscout/lib/ui/views"
+	"redscout/lib/ui/views/components"
 	"redscout/models"
 	"time"
 
@@ -124,7 +125,7 @@ func (ui *AppUI) createLoadingScreen() {
 	ui.loadingTextView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("[yellow]Loading RedScout ⠋\n\n[white]Initializing...[-]")
+		SetText("[yellow]Analysing Redis ⠋\n\n[white]Initializing...[-]")
 	ui.loadingTextView.SetBorder(true)
 	ui.loadingTextView.SetBorderPadding(2, 2, 2, 2)
 
@@ -145,12 +146,24 @@ func (ui *AppUI) createLoadingScreen() {
 				ui.app.QueueUpdateDraw(func() {
 					var text string
 					if ui.scanner == nil || ui.scanner.State == nil {
-						text = fmt.Sprintf("[yellow]Loading RedScout %c\n\n[white]Initializing...[-]", spinner[i%len(spinner)])
+						text = fmt.Sprintf("[yellow]Analysing Redis %c\n\n[white]Initializing...[-]", spinner[i%len(spinner)])
 					} else if ui.scanner.State.ScanComplete {
 						ticker.Stop()
 						return
 					} else {
-						text = fmt.Sprintf("[yellow]Loading RedScout %c\n\n[white]%s[-]", spinner[i%len(spinner)], ui.scanner.State.Status)
+						var progressInfo string
+
+						if ui.scanner.State.ScanProgress < 100 {
+							scannedKeys := int64(float64(ui.scanner.State.TotalKeysToScan) * ui.scanner.State.ScanProgress / 100)
+							scanBar := components.CreateProgressBar(ui.scanner.State.ScanProgress, 100, 40)
+							progressInfo = fmt.Sprintf("\n\n[cyan]Scan Progress:[white]\n%s\n[white]%d / %d keys[-]", scanBar, scannedKeys, ui.scanner.State.TotalKeysToScan)
+						} else if ui.scanner.State.MonitorProgress < 100 {
+							elapsed := time.Duration(float64(ui.scanner.State.MonitorDurationTotal) * ui.scanner.State.MonitorProgress / 100)
+							monitorBar := components.CreateProgressBar(ui.scanner.State.MonitorProgress, 100, 40)
+							progressInfo = fmt.Sprintf("\n\n[cyan]Monitor Progress:[white]\n%s\n[white]%v / %v[-]", monitorBar, elapsed.Round(time.Second), ui.scanner.State.MonitorDurationTotal)
+						}
+
+						text = fmt.Sprintf("[yellow]Analysing Redis %c\n\n[white][-]%s", spinner[i%len(spinner)], progressInfo)
 					}
 					ui.loadingTextView.SetText(text)
 				})

@@ -3,13 +3,14 @@ package scanner
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"io"
 	"log"
 	"redscout/lib"
 	"redscout/models"
 	"strings"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func (s *Scanner) FetchSlowLog() error {
@@ -102,6 +103,8 @@ func (s *Scanner) ScanMemory() error {
 
 	log.Printf("Memory scan started")
 
+	s.State.TotalKeysToScan = s.Config.KeysScanSize
+
 	keys, err := s.scanKeys()
 	if err != nil {
 		return err
@@ -111,6 +114,7 @@ func (s *Scanner) ScanMemory() error {
 		return fmt.Errorf("failed to seek scan file: %w", err)
 	}
 
+	processedKeys := int64(0)
 	for i := 0; i < len(keys); i += lib.MemoryPipeBatchSize {
 		pipe := s.redis.Pipeline()
 
@@ -138,8 +142,13 @@ func (s *Scanner) ScanMemory() error {
 			}
 			_, _ = s.scanFile.WriteString(fmt.Sprintf("%s %d %d %s\n", tr.key, xMem, int64(xTtl.Seconds()), xType))
 		}
+
+		processedKeys += int64(len(keyBatch))
+		s.State.ScanProgress = min(float64(s.State.ScannedKeys)/float64(s.Config.KeysScanSize)*100, 100)
+		s.State.Updates <- s.State
 	}
 
+	s.State.ScanProgress = 100
 	log.Printf("Memory scan completed; scanned %d keys", len(keys))
 	s.updateStatus("Memory scan completed")
 	return nil
@@ -151,6 +160,10 @@ func (s *Scanner) MonitorOps() error {
 	s.updateStatus("Monitoring operations")
 
 	log.Printf("Ops monitor started for %v", s.Config.MonitorDuration)
+
+	s.State.MonitorStartTime = time.Now()
+	s.State.MonitorDurationTotal = s.Config.MonitorDuration
+	s.State.MonitorProgress = 0
 
 	//Buffered channel to handle Redis monitor output
 	ch := make(chan string, 10000)
@@ -174,6 +187,9 @@ func (s *Scanner) MonitorOps() error {
 		return fmt.Errorf("failed to seek monitor file: %w", err)
 	}
 
+	progressTicker := time.NewTicker(100 * time.Millisecond)
+	defer progressTicker.Stop()
+
 	for {
 		select {
 		case line, ok := <-ch:
@@ -193,8 +209,14 @@ func (s *Scanner) MonitorOps() error {
 				continue
 			}
 			_, _ = s.monitorFile.WriteString(fmt.Sprintf("%s %s\n", key, cmd))
+		case <-progressTicker.C:
+			elapsed := time.Since(s.State.MonitorStartTime)
+			s.State.MonitorProgress = min(float64(elapsed)/float64(s.Config.MonitorDuration)*100, 100)
+			s.State.Updates <- s.State
 		case <-ctxTimeout.Done():
+			s.State.MonitorProgress = 100
 			s.State.TotalMonitorDuration += s.Config.MonitorDuration
+			s.State.Updates <- s.State
 			s.updateStatus("Monitoring completed")
 			log.Printf("Monitoring completed")
 			return nil

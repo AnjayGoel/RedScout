@@ -30,6 +30,13 @@ type State struct {
 	//Last Status Message
 	Status       string
 	ScanComplete bool
+
+	// Tracking progress of operations
+	TotalKeysToScan      int64
+	ScanProgress         float64 // 0-100
+	MonitorStartTime     time.Time
+	MonitorProgress      float64 // 0-100
+	MonitorDurationTotal time.Duration
 }
 
 func NewState() *State {
@@ -47,5 +54,10 @@ func NewState() *State {
 		Updates:              make(chan *State, 100), // Buffered channel for updates
 		Status:               "Initializing",
 		ScanComplete:         false,
+		TotalKeysToScan:      0,
+		ScanProgress:         0,
+		MonitorStartTime:     time.Time{},
+		MonitorProgress:      0,
+		MonitorDurationTotal: 0,
 	}
 }
