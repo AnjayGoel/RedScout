@@ -27,7 +27,7 @@ Download the appropriate binary for your platform from the releases page.
 ```bash
 ./redscout \
   -host redis.example.com \
-  -port 6379 \
+  -port 6380 \
   -password "your-password" \
   -tls true \
   -monitor-duration 30 \
