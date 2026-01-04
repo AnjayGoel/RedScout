@@ -176,10 +176,17 @@ func (ui *AppUI) createLoadingScreen() {
 func (ui *AppUI) createMainScreen() {
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
 	flex.Clear()
+
 	flex.AddItem(ui.headers.HeaderFlex, 6, 0, false)
-	flex.AddItem(ui.body.TabBar, 1, 0, false)
+
+	ui.body.TabBar.SetBorder(true).SetBorderPadding(0, 0, 1, 0)
+	flex.AddItem(ui.body.TabBar, 3, 0, false)
+
 	flex.AddItem(ui.body.ContentFlex, 0, 1, true)
-	flex.AddItem(ui.body.Shortcuts, 1, 0, false)
+
+	ui.body.Shortcuts.SetBorder(true).SetBorderPadding(0, 0, 1, 0)
+	flex.AddItem(ui.body.Shortcuts, 3, 0, false)
+
 	ui.app.SetInputCapture(ui.handleInput)
 	ui.app.SetRoot(flex, true)
 }

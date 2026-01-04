@@ -16,6 +16,7 @@ func NewBigKeyTable() *tview.Table {
 	table.SetTitle(" Big Keys (Top N by Memory) ").SetTitleAlign(tview.AlignLeft)
 	table.SetSelectable(true, false)
 	table.SetBorders(false)
+	table.SetBorderPadding(0, 0, 1, 0)
 	return table
 }
 
