@@ -234,7 +234,7 @@ func (ui *AppUI) handleInput(e *tcell.EventKey) *tcell.EventKey {
 	}
 
 	switch e.Rune() {
-	case '1', '2', '3', '4', '5', '6', '7', '8', 't', 'T':
+	case '1', '2', '3', '4', '5', '6', '7', '8', 't', 'T', 'n', 'N', 'l', 'L', 'b', 'B':
 		ui.body.HandleInput(e.Rune(), ui.scanner.State)
 	case 'q', 'Q':
 		ui.app.Stop()

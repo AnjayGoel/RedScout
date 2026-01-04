@@ -83,11 +83,11 @@ func (b *BodyView) SetActiveView(view Tab) {
 		b.ContentFlex.Clear().AddItem(b.namespace.Flex, 0, 2, true)
 		b.Shortcuts.SetText(components.StatsHeader)
 		b.TabBar.SetText(
-			`[::b][white:teal]Namespace [white::-]` +
+			`[::b][white:teal][[yellow]N[-]]amespace [white::-]` +
 				`[white:black][-:-]` +
-				`[white] Slow Log [-]` +
+				`[white] Slow [[yellow]L[-]]og [-]` +
 				`[white:black][-:-]` +
-				`[white] Big Keys/Hot Keys [-]`,
+				`[white] [[yellow]B[-]]ig Keys/Hot Keys [-]`,
 		)
 		b.namespace.Table.Select(1, 0)
 		b.app.SetFocus(b.namespace.Table)
@@ -95,11 +95,11 @@ func (b *BodyView) SetActiveView(view Tab) {
 		b.ContentFlex.Clear().AddItem(b.slowLog.Table, 0, 2, true)
 		b.Shortcuts.SetText(components.SlowLogHeader)
 		b.TabBar.SetText(
-			`[white]Namespace [-]` +
+			`[white][[yellow]N[-]]amespace [-]` +
 				`[white:black][-:-]` +
-				`[::b][white:teal] Slow Log [white::-]` +
+				`[::b][white:teal] Slow [[yellow]L[-]]og [white::-]` +
 				`[white:black][-:-]` +
-				`[white] Big Keys/Hot Keys [-]`,
+				`[white] [[yellow]B[-]]ig Keys/Hot Keys [-]`,
 		)
 		b.slowLog.Table.Select(1, 0)
 		b.app.SetFocus(b.slowLog.Table)
@@ -107,11 +107,11 @@ func (b *BodyView) SetActiveView(view Tab) {
 		b.ContentFlex.Clear().AddItem(b.specialKeysView.Flex, 0, 2, true)
 		b.Shortcuts.SetText(components.SpecialKeysShortcutsText)
 		b.TabBar.SetText(
-			`[white]Namespace [-]` +
+			`[white][[yellow]N[-]]amespace [-]` +
 				`[white:black][-:-]` +
-				`[white] Slow Log [-]` +
+				`[white] Slow [[yellow]L[-]]og [-]` +
 				`[white:black][-:-]` +
-				`[::b][white:teal] Big Keys/Hot Keys [white::-]`,
+				`[::b][white:teal] [[yellow]B[-]]ig Keys/Hot Keys [white::-]`,
 		)
 		b.specialKeysView.Focus()
 	}
@@ -141,6 +141,14 @@ func (b *BodyView) HandleInput(inp rune, state *models.State) {
 	}
 	if inp == 'B' || inp == 'b' {
 		b.SetActiveView(TabSpecialKeys)
+		return
+	}
+	if inp == 'N' || inp == 'n' {
+		b.SetActiveView(TabNamespace)
+		return
+	}
+	if inp == 'L' || inp == 'l' {
+		b.SetActiveView(TabSlowLog)
 		return
 	}
 	if inp > '8' || inp < '1' {
