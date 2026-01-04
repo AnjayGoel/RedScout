@@ -2,6 +2,7 @@ package lib
 
 import (
 	"flag"
+	"fmt"
 	"redscout/models"
 	"regexp"
 	"strings"
@@ -38,13 +39,13 @@ func ParseFlags() models.Config {
 
 	flag.Parse()
 
-	if monitorDuration > 0 {
-		config.MonitorDuration = time.Duration(monitorDuration) * time.Second
+	// Validate flag values
+	if err := validateFlags(&config, monitorDuration, refreshInterval); err != nil {
+		panic(err)
 	}
 
-	if refreshInterval > 0 {
-		config.RefreshInterval = time.Duration(refreshInterval) * time.Second
-	}
+	config.MonitorDuration = time.Duration(monitorDuration) * time.Second
+	config.RefreshInterval = time.Duration(refreshInterval) * time.Second
 
 	for _, pattern := range strings.Split(idRegexInput, " ") {
 		pattern = strings.TrimSpace(pattern)
@@ -61,4 +62,39 @@ func ParseFlags() models.Config {
 	}
 
 	return config
+}
+
+// validateFlags validates the parsed flag values
+func validateFlags(config *models.Config, monitorDuration, refreshInterval int) error {
+	// Validate scan-size
+	if config.KeysScanSize <= 0 {
+		return fmt.Errorf("scan-size must be positive, got %d", config.KeysScanSize)
+	}
+
+	// Validate monitor-duration
+	if monitorDuration < 0 {
+		return fmt.Errorf("monitor-duration must be non-negative, got %d seconds", monitorDuration)
+	}
+
+	// Validate refresh-interval
+	if refreshInterval <= 0 {
+		return fmt.Errorf("refresh-interval must be positive, got %d seconds", refreshInterval)
+	}
+
+	// Validate port number
+	if config.RedisPort < 1 || config.RedisPort > 65535 {
+		return fmt.Errorf("port must be between 1 and 65535, got %d", config.RedisPort)
+	}
+
+	// Validate database number
+	if config.RedisDB < 0 {
+		return fmt.Errorf("database number must be non-negative, got %d", config.RedisDB)
+	}
+
+	// Validate delimiter is not empty
+	if config.Delimiter == "" {
+		return fmt.Errorf("delimiter cannot be empty")
+	}
+
+	return nil
 }
