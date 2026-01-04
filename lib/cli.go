@@ -2,6 +2,7 @@ package lib
 
 import (
 	"flag"
+	"fmt"
 	"redscout/models"
 	"regexp"
 	"strings"
@@ -12,15 +13,16 @@ import (
 func ParseFlags() models.Config {
 	config := models.DefaultConfig()
 
-	flag.StringVar(&config.RedisHost, "host", config.RedisHost, "Redis host address")
-	flag.IntVar(&config.RedisPort, "port", config.RedisPort, "Redis port number")
-	flag.StringVar(&config.RedisUser, "username", config.RedisUser, "Redis username")
-	flag.StringVar(&config.RedisPassword, "password", config.RedisPassword, "Redis password")
-	flag.IntVar(&config.RedisDB, "db", config.RedisDB, "Redis database number")
+	// Redis connection flags (standard redis-cli shorthands)
+	flag.StringVar(&config.RedisHost, "h", config.RedisHost, "Redis host address")
+	flag.IntVar(&config.RedisPort, "p", config.RedisPort, "Redis port number")
+	flag.StringVar(&config.RedisUser, "u", config.RedisUser, "Redis username")
+	flag.StringVar(&config.RedisPassword, "a", config.RedisPassword, "Redis password")
+	flag.IntVar(&config.RedisDB, "n", config.RedisDB, "Redis database number")
 
-	var useTLS string
-	flag.StringVar(&useTLS, "tls", "", "Use TLS for Redis connection")
+	flag.BoolVar(&config.UseTLS, "tls", config.UseTLS, "Use TLS for Redis connection")
 
+	// Application-specific flags (long form only)
 	flag.Int64Var(&config.KeysScanSize, "scan-size", config.KeysScanSize, "Number of keys to scan per iteration")
 
 	var monitorDuration int
@@ -30,7 +32,6 @@ func ParseFlags() models.Config {
 	flag.IntVar(&refreshInterval, "refresh-interval", int(config.RefreshInterval.Seconds()), "Interval in seconds between Redis info refreshes")
 
 	flag.StringVar(&config.Delimiter, "delimiter", config.Delimiter, "Delimiter for separating redis keys")
-
 	flag.StringVar(&config.LogsDir, "logs-dir", config.LogsDir, "Directory to store logs")
 
 	idRegexInput := ""
@@ -38,17 +39,13 @@ func ParseFlags() models.Config {
 
 	flag.Parse()
 
-	if useTLS != "" {
-		config.UseTLS = strings.ToLower(useTLS) == "true"
+	// Validate flag values
+	if err := validateFlags(&config, monitorDuration, refreshInterval); err != nil {
+		panic(err)
 	}
 
-	if monitorDuration > 0 {
-		config.MonitorDuration = time.Duration(monitorDuration) * time.Second
-	}
-
-	if refreshInterval > 0 {
-		config.RefreshInterval = time.Duration(refreshInterval) * time.Second
-	}
+	config.MonitorDuration = time.Duration(monitorDuration) * time.Second
+	config.RefreshInterval = time.Duration(refreshInterval) * time.Second
 
 	for _, pattern := range strings.Split(idRegexInput, " ") {
 		pattern = strings.TrimSpace(pattern)
@@ -65,4 +62,39 @@ func ParseFlags() models.Config {
 	}
 
 	return config
+}
+
+// validateFlags validates the parsed flag values
+func validateFlags(config *models.Config, monitorDuration, refreshInterval int) error {
+	// Validate scan-size
+	if config.KeysScanSize <= 0 {
+		return fmt.Errorf("scan-size must be positive, got %d", config.KeysScanSize)
+	}
+
+	// Validate monitor-duration
+	if monitorDuration < 0 {
+		return fmt.Errorf("monitor-duration must be non-negative, got %d seconds", monitorDuration)
+	}
+
+	// Validate refresh-interval
+	if refreshInterval <= 0 {
+		return fmt.Errorf("refresh-interval must be positive, got %d seconds", refreshInterval)
+	}
+
+	// Validate port number
+	if config.RedisPort < 1 || config.RedisPort > 65535 {
+		return fmt.Errorf("port must be between 1 and 65535, got %d", config.RedisPort)
+	}
+
+	// Validate database number
+	if config.RedisDB < 0 {
+		return fmt.Errorf("database number must be non-negative, got %d", config.RedisDB)
+	}
+
+	// Validate delimiter is not empty
+	if config.Delimiter == "" {
+		return fmt.Errorf("delimiter cannot be empty")
+	}
+
+	return nil
 }

@@ -10,7 +10,7 @@ import (
 func main() {
 	log.SetFlags(0)
 	for _, arg := range os.Args {
-		if arg == "-h" || arg == "--help" {
+		if arg == "--help" {
 			os.Setenv("TVIEW_DISABLE", "1")
 			break
 		}

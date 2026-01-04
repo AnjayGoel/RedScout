@@ -2,13 +2,14 @@ package ui
 
 import (
 	"fmt"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
-	"log"
 	"redscout/lib/scanner"
 	"redscout/lib/ui/views"
+	"redscout/lib/ui/views/components"
 	"redscout/models"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 type AppUI struct {
@@ -63,10 +64,39 @@ func (ui *AppUI) createDisclaimerScreen() {
 	// Set up input capture for disclaimer
 	ui.app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		switch e.Rune() {
-		case 'y', 'Y':
+		case 'y', 'Y', '\r':
 			ui.start()
 			return nil
-		case 'n', 'N':
+		case 'n', 'N', 'q', 'Q':
+			ui.app.Stop()
+			return nil
+		}
+		return e
+	})
+}
+
+func (ui *AppUI) createErrorScreen(errorMsg string) {
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
+
+	errorText := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetText(fmt.Sprintf("[red]ERROR[-]\n\n[white]%s[-]\n\n[green]R[-]etry / [red]Q[-]uit", errorMsg))
+	errorText.SetBorder(true)
+	errorText.SetBorderPadding(2, 2, 2, 2)
+
+	flex.AddItem(errorText, 0, 1, false)
+	ui.app.QueueUpdateDraw(func() {
+		ui.app.SetRoot(flex, true)
+	})
+
+	// Set up input capture for error screen
+	ui.app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Rune() {
+		case 'r', 'R', '\r':
+			ui.start()
+			return nil
+		case 'q', 'Q':
 			ui.app.Stop()
 			return nil
 		}
@@ -79,8 +109,8 @@ func (ui *AppUI) start() {
 	go func() {
 		s, err := scanner.NewScanner(ui.config)
 		if err != nil {
-			ui.app.Stop()
-			log.Fatalf("Error initializing scanner: %v", err)
+			ui.createErrorScreen(fmt.Sprintf("Error initializing scanner:\n%v", err))
+			return
 		}
 		ui.scanner = s
 
@@ -95,7 +125,7 @@ func (ui *AppUI) createLoadingScreen() {
 	ui.loadingTextView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("[yellow]Loading RedScout ⠋\n\n[white]Initializing...[-]")
+		SetText("[yellow]Analysing Redis ⠋\n\n[white]Initializing...[-]")
 	ui.loadingTextView.SetBorder(true)
 	ui.loadingTextView.SetBorderPadding(2, 2, 2, 2)
 
@@ -116,12 +146,24 @@ func (ui *AppUI) createLoadingScreen() {
 				ui.app.QueueUpdateDraw(func() {
 					var text string
 					if ui.scanner == nil || ui.scanner.State == nil {
-						text = fmt.Sprintf("[yellow]Loading RedScout %c\n\n[white]Initializing...[-]", spinner[i%len(spinner)])
+						text = fmt.Sprintf("[yellow]Analysing Redis %c\n\n[white]Initializing...[-]", spinner[i%len(spinner)])
 					} else if ui.scanner.State.ScanComplete {
 						ticker.Stop()
 						return
 					} else {
-						text = fmt.Sprintf("[yellow]Loading RedScout %c\n\n[white]%s[-]", spinner[i%len(spinner)], ui.scanner.State.Status)
+						var progressInfo string
+
+						if ui.scanner.State.ScanProgress < 100 {
+							scannedKeys := int64(float64(ui.scanner.State.TotalKeysToScan) * ui.scanner.State.ScanProgress / 100)
+							scanBar := components.CreateProgressBar(ui.scanner.State.ScanProgress, 100, 40)
+							progressInfo = fmt.Sprintf("\n\n[cyan]Scan Progress:[white]\n%s\n[white]%d / %d keys[-]", scanBar, scannedKeys, ui.scanner.State.TotalKeysToScan)
+						} else if ui.scanner.State.MonitorProgress < 100 {
+							elapsed := time.Duration(float64(ui.scanner.State.MonitorDurationTotal) * ui.scanner.State.MonitorProgress / 100)
+							monitorBar := components.CreateProgressBar(ui.scanner.State.MonitorProgress, 100, 40)
+							progressInfo = fmt.Sprintf("\n\n[cyan]Monitor Progress:[white]\n%s\n[white]%v / %v[-]", monitorBar, elapsed.Round(time.Second), ui.scanner.State.MonitorDurationTotal)
+						}
+
+						text = fmt.Sprintf("[yellow]Analysing Redis %c\n\n[white][-]%s", spinner[i%len(spinner)], progressInfo)
 					}
 					ui.loadingTextView.SetText(text)
 				})
@@ -192,7 +234,7 @@ func (ui *AppUI) handleInput(e *tcell.EventKey) *tcell.EventKey {
 	}
 
 	switch e.Rune() {
-	case '1', '2', '3', '4', '5', '6', '7', '8', 't', 'T':
+	case '1', '2', '3', '4', '5', '6', '7', '8', 't', 'T', 'n', 'N', 'l', 'L', 'b', 'B', 'h', 'H':
 		ui.body.HandleInput(e.Rune(), ui.scanner.State)
 	case 'q', 'Q':
 		ui.app.Stop()
