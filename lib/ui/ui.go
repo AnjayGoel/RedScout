@@ -2,13 +2,14 @@ package ui
 
 import (
 	"fmt"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 	"log"
 	"redscout/lib/scanner"
 	"redscout/lib/ui/views"
 	"redscout/models"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 type AppUI struct {
@@ -63,10 +64,10 @@ func (ui *AppUI) createDisclaimerScreen() {
 	// Set up input capture for disclaimer
 	ui.app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		switch e.Rune() {
-		case 'y', 'Y':
+		case 'y', 'Y', '\r':
 			ui.start()
 			return nil
-		case 'n', 'N':
+		case 'n', 'N', 'q', 'Q':
 			ui.app.Stop()
 			return nil
 		}
