@@ -36,7 +36,7 @@ func (r *NamespaceSnapshot) ToMetric(s *State) *NamespaceMetrics {
 
 	processed := &NamespaceMetrics{}
 
-	totalKeys := s.RedisInfo.Keyspace["db0"].Keys
+	totalKeys := s.Keyspace().Keys
 
 	processed.Namespace = r.Namespace
 	processed.EstKeys = (totalKeys * r.Keys) / s.ScannedKeys

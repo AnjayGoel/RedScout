@@ -48,7 +48,7 @@ func NewHeaderView() *HeaderView {
 
 func (header *HeaderView) Update(state *models.State) {
 	header.updateSystem(state.RedisInfo)
-	header.updatePerformance(state.RedisInfo)
+	header.updatePerformance(state.RedisInfo, state.Keyspace())
 	header.updateMemory(state.RedisInfo)
 }
 
@@ -66,9 +66,9 @@ func (header *HeaderView) updateSystem(info *models.RedisInfo) {
 	header.system.SetText(text)
 }
 
-func (header *HeaderView) updatePerformance(info *models.RedisInfo) {
-	totalKeys := info.Keyspace["db0"].Keys
-	avgTTL := info.Keyspace["db0"].AvgTTL
+func (header *HeaderView) updatePerformance(info *models.RedisInfo, keyspace models.KeyspaceInfo) {
+	totalKeys := keyspace.Keys
+	avgTTL := keyspace.AvgTTL
 
 	text := fmt.Sprintf(" [#7d8590]PERFORMANCE[-]\n [#7d8590]Keys[-] [#f0883e]%s[-] [#7d8590]· Ops[-] [#f0883e]%s[-]\n [#7d8590]Hit[-] [#3fb950]%.1f%%[-] [#7d8590]· Avg TTL[-] [#8b949e]%s[-]",
 		utils.FormatNumber(float64(totalKeys)),

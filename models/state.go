@@ -1,11 +1,13 @@
 package models
 
 import (
+	"fmt"
 	"time"
 )
 
 type State struct {
 	//Current execution state variables
+	DB            int
 	CurrentPrefix Key
 
 	LastInfoCheck        time.Time
@@ -42,8 +44,9 @@ type State struct {
 	MonitorDurationTotal time.Duration
 }
 
-func NewState() *State {
+func NewState(db int) *State {
 	return &State{
+		DB:                   db,
 		CurrentPrefix:        Key{},
 		LastInfoCheck:        time.Time{},
 		TotalMonitorDuration: 0,
@@ -63,4 +66,8 @@ func NewState() *State {
 		MonitorProgress:      0,
 		MonitorDurationTotal: 0,
 	}
+}
+
+func (s *State) Keyspace() KeyspaceInfo {
+	return s.RedisInfo.Keyspace[fmt.Sprintf("db%d", s.DB)]
 }

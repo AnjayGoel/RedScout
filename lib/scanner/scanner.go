@@ -71,7 +71,7 @@ func NewScanner(cfg *models.Config) (*Scanner, error) {
 
 		redis: client,
 
-		State: models.NewState(),
+		State: models.NewState(cfg.RedisDB),
 
 		monitorFile: monitorFile,
 		muMonitor:   sync.Mutex{},

@@ -10,6 +10,7 @@ import (
 	"os"
 	"redscout/lib"
 	"redscout/models"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -211,6 +212,9 @@ func (s *Scanner) MonitorOps() error {
 			if !ok {
 				continue
 			}
+			if db, ok := monitorLineDB(line); ok && db != s.Config.RedisDB {
+				continue
+			}
 			parts := strings.Split(line, "\"")
 			if len(parts) < 2 {
 				continue
@@ -274,6 +278,20 @@ func (s *Scanner) resetScanLog() error {
 	}
 	_, err := s.scanFile.Seek(0, io.SeekStart)
 	return err
+}
+
+func monitorLineDB(line string) (int, bool) {
+	start := strings.IndexByte(line, '[')
+	if start < 0 {
+		return 0, false
+	}
+	rest := line[start+1:]
+	end := strings.IndexByte(rest, ' ')
+	if end < 0 {
+		return 0, false
+	}
+	db, err := strconv.Atoi(rest[:end])
+	return db, err == nil
 }
 
 func appendLog(mu *sync.Mutex, f *os.File, buf *bytes.Buffer) error {
