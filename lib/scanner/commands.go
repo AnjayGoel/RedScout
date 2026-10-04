@@ -343,6 +343,8 @@ func (s *Scanner) FindKeysWithPrefix(prefix models.Key, limit int) []string {
 	return keys
 }
 
+const maxStringPreviewBytes = 4096
+
 func (s *Scanner) FetchKeyValue(key string) error {
 	ctx := s.ctx
 
@@ -372,10 +374,16 @@ func (s *Scanner) FetchKeyValue(key string) error {
 	// Get value based on type
 	switch keyType {
 	case "string":
-		val, err := s.redis.Get(ctx, key).Result()
+		length, err := s.redis.StrLen(ctx, key).Result()
 		if err == nil {
-			info.Length = int64(len(val))
+			info.Length = length
+		}
+		val, err := s.redis.GetRange(ctx, key, 0, maxStringPreviewBytes-1).Result()
+		if err == nil {
 			info.Value = val
+			if length > int64(len(val)) {
+				info.Value += fmt.Sprintf("\n... (%d more bytes)", length-int64(len(val)))
+			}
 		}
 	case "list":
 		length, err := s.redis.LLen(ctx, key).Result()

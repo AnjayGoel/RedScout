@@ -33,7 +33,7 @@ func (kv *KeyValueView) Update(info *models.KeyValueInfo) {
 			"[#7d8590]Type:[-] [#8b949e]%s[-]\n"+
 			"[#7d8590]Size:[-] [#f0883e]%s[-]\n"+
 			"[#7d8590]TTL:[-]  [#3fb950]%s[-]\n",
-		info.Key,
+		tview.Escape(info.Key),
 		info.Type,
 		utils.FormatBytes(info.Size),
 		formatTTL(info.TTL),
@@ -44,7 +44,7 @@ func (kv *KeyValueView) Update(info *models.KeyValueInfo) {
 	}
 
 	header += "\n[#7d8590]─── Value ───[-]\n\n"
-	header += fmt.Sprintf("[#c9d1d9]%s[-]", info.Value)
+	header += fmt.Sprintf("[#c9d1d9]%s[-]", tview.Escape(info.Value))
 
 	kv.View.SetText(header)
 	kv.View.ScrollToBeginning()
