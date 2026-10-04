@@ -18,9 +18,6 @@ import (
 )
 
 func (s *Scanner) FetchSlowLog() error {
-	s.muRedis.Lock()
-	defer s.muRedis.Unlock()
-
 	slowLog, err := s.redis.SlowLogGet(s.ctx, s.Config.TopK).Result()
 
 	models.SlowLogList(slowLog).Sort("Timestamp")
@@ -31,8 +28,8 @@ func (s *Scanner) FetchSlowLog() error {
 }
 
 func (s *Scanner) FetchRedisInfo() error {
-	s.muRedis.Lock()
-	defer s.muRedis.Unlock()
+	s.muInfo.Lock()
+	defer s.muInfo.Unlock()
 
 	infoStr, err := s.redis.Info(s.ctx).Result()
 	if err != nil {
@@ -101,10 +98,12 @@ type trip struct {
 }
 
 func (s *Scanner) ScanMemory() error {
-	s.updateStatus("Scanning memory")
+	if !s.muScanRun.TryLock() {
+		return ErrBusy
+	}
+	defer s.muScanRun.Unlock()
 
-	s.muRedis.Lock()
-	defer s.muRedis.Unlock()
+	s.updateStatus("Scanning memory")
 
 	log.Printf("Memory scan started")
 
@@ -162,8 +161,10 @@ func (s *Scanner) ScanMemory() error {
 }
 
 func (s *Scanner) MonitorOps() error {
-	s.muRedis.Lock()
-	defer s.muRedis.Unlock()
+	if !s.muMonitorRun.TryLock() {
+		return ErrBusy
+	}
+	defer s.muMonitorRun.Unlock()
 	s.updateStatus("Monitoring operations")
 
 	log.Printf("Ops monitor started for %v", s.Config.MonitorDuration)
@@ -308,9 +309,6 @@ func (s *Scanner) FindKeysWithPrefix(prefix models.Key, limit int) []string {
 }
 
 func (s *Scanner) FetchKeyValue(key string) error {
-	s.muRedis.Lock()
-	defer s.muRedis.Unlock()
-
 	ctx := s.ctx
 
 	// Get type

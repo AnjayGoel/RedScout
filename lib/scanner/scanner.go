@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Masterminds/semver/v3"
 	"github.com/redis/go-redis/v9"
@@ -22,8 +23,10 @@ type Scanner struct {
 
 	State *models.State
 
-	redis   *redis.Client
-	muRedis sync.Mutex
+	redis        *redis.Client
+	muInfo       sync.Mutex
+	muScanRun    sync.Mutex
+	muMonitorRun sync.Mutex
 
 	monitorFile *os.File
 	muMonitor   sync.Mutex
@@ -32,9 +35,9 @@ type Scanner struct {
 	muScan   sync.Mutex
 }
 
-func NewScanner(cfg *models.Config) (*Scanner, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+var ErrBusy = errors.New("operation already in progress")
 
+func NewScanner(cfg *models.Config) (*Scanner, error) {
 	client, err := lib.RedisClientFromConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -57,6 +60,7 @@ func NewScanner(cfg *models.Config) (*Scanner, error) {
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	s := &Scanner{
 		Config: cfg,
 		kp:     models.NewKeyParser(cfg.Delimiter, cfg.IDPatterns),
@@ -65,8 +69,7 @@ func NewScanner(cfg *models.Config) (*Scanner, error) {
 		cancel:  cancel,
 		logFile: logFile,
 
-		redis:   client,
-		muRedis: sync.Mutex{},
+		redis: client,
 
 		State: models.NewState(),
 
