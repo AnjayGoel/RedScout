@@ -107,6 +107,13 @@ func (s *Scanner) ScanMemory() error {
 
 	log.Printf("Memory scan started")
 
+	if s.State.Cursor == 0 && s.State.ScannedKeys > 0 {
+		if err := s.resetScanLog(); err != nil {
+			return fmt.Errorf("failed to reset scan file: %w", err)
+		}
+		s.State.ScannedKeys = 0
+	}
+
 	s.State.TotalKeysToScan = s.Config.KeysScanSize
 	s.updateStatus("Collecting keys")
 
@@ -257,6 +264,16 @@ func (s *Scanner) MonitorOps() error {
 			return nil
 		}
 	}
+}
+
+func (s *Scanner) resetScanLog() error {
+	s.muScan.Lock()
+	defer s.muScan.Unlock()
+	if err := s.scanFile.Truncate(0); err != nil {
+		return err
+	}
+	_, err := s.scanFile.Seek(0, io.SeekStart)
+	return err
 }
 
 func appendLog(mu *sync.Mutex, f *os.File, buf *bytes.Buffer) error {
