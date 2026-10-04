@@ -82,5 +82,4 @@ func UpdateBigKeyTable(table *tview.Table, bigKeys models.BigKeyList) {
 			table.SetCell(i+1, j, cell)
 		}
 	}
-	table.ScrollToBeginning()
 }

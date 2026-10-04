@@ -102,28 +102,38 @@ func (b *BodyView) updateTabBar() {
 }
 
 func (b *BodyView) SetActiveView(view Tab) {
+	b.showView(view, true)
+}
+
+func (b *BodyView) HideKeyValue() {
+	b.showView(b.activeView, false)
+}
+
+func (b *BodyView) showView(view Tab, resetSelection bool) {
 	b.activeView = view
 	b.showingValue = false
 	b.updateTabBar()
 
+	var content tview.Primitive
+	var table *tview.Table
 	switch view {
 	case TabNamespace:
-		b.ContentFlex.Clear().AddItem(b.namespace.Flex, 0, 2, true)
-		b.namespace.Table.Select(1, 0)
-		b.app.SetFocus(b.namespace.Table)
+		content, table = b.namespace.Flex, b.namespace.Table
 	case TabSlowLog:
-		b.ContentFlex.Clear().AddItem(b.slowLog.Table, 0, 2, true)
-		b.slowLog.Table.Select(1, 0)
-		b.app.SetFocus(b.slowLog.Table)
+		content, table = b.slowLog.Table, b.slowLog.Table
 	case TabBigKeys:
-		b.ContentFlex.Clear().AddItem(b.bigKeyTable, 0, 2, true)
-		b.bigKeyTable.Select(1, 0)
-		b.app.SetFocus(b.bigKeyTable)
+		content, table = b.bigKeyTable, b.bigKeyTable
 	case TabHotKeys:
-		b.ContentFlex.Clear().AddItem(b.hotKeyTable, 0, 2, true)
-		b.hotKeyTable.Select(1, 0)
-		b.app.SetFocus(b.hotKeyTable)
+		content, table = b.hotKeyTable, b.hotKeyTable
+	default:
+		return
 	}
+
+	b.ContentFlex.Clear().AddItem(content, 0, 2, true)
+	if resetSelection {
+		table.Select(1, 0)
+	}
+	b.app.SetFocus(table)
 }
 
 func (b *BodyView) ToggleView() {
@@ -158,23 +168,25 @@ func (b *BodyView) IsShowingValue() bool {
 }
 
 func (b *BodyView) HandleInput(inp rune, state *models.State) {
-	if inp == 'T' || inp == 't' {
+	switch inp {
+	case 'T', 't':
+		state.KeyValue = nil
 		b.ToggleView()
 		return
-	}
-	if inp == 'B' || inp == 'b' {
+	case 'B', 'b':
+		state.KeyValue = nil
 		b.SetActiveView(TabBigKeys)
 		return
-	}
-	if inp == 'H' || inp == 'h' {
+	case 'H', 'h':
+		state.KeyValue = nil
 		b.SetActiveView(TabHotKeys)
 		return
-	}
-	if inp == 'N' || inp == 'n' {
+	case 'N', 'n':
+		state.KeyValue = nil
 		b.SetActiveView(TabNamespace)
 		return
-	}
-	if inp == 'L' || inp == 'l' {
+	case 'L', 'l':
+		state.KeyValue = nil
 		b.SetActiveView(TabSlowLog)
 		return
 	}

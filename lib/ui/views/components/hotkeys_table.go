@@ -74,5 +74,4 @@ func UpdateHotKeyTable(table *tview.Table, hotKeys models.HotKeyList) {
 			table.SetCell(i+1, j, cell)
 		}
 	}
-	table.ScrollToBeginning()
 }

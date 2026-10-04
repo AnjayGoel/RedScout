@@ -327,7 +327,7 @@ func (ui *AppUI) handleInput(e *tcell.EventKey) *tcell.EventKey {
 					}
 				}
 			}
-			ui.body.SetActiveView(ui.body.ActiveView())
+			ui.body.HideKeyValue()
 			return nil
 		}
 		if ui.body.ActiveView() == "namespace" {
