@@ -2,13 +2,16 @@ package scanner
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"redscout/lib"
 	"redscout/models"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -116,10 +119,7 @@ func (s *Scanner) ScanMemory() error {
 	s.State.TotalKeysToScan = int64(len(keys))
 	s.updateStatus("Scanning memory")
 
-	if _, err := s.scanFile.Seek(0, io.SeekEnd); err != nil {
-		return fmt.Errorf("failed to seek scan file: %w", err)
-	}
-
+	var buf bytes.Buffer
 	processedKeys := int64(0)
 	for i := 0; i < len(keys); i += lib.MemoryPipeBatchSize {
 		pipe := s.redis.Pipeline()
@@ -144,7 +144,10 @@ func (s *Scanner) ScanMemory() error {
 			if e1 != nil || e2 != nil || e3 != nil {
 				continue
 			}
-			_, _ = s.scanFile.WriteString(fmt.Sprintf("%s %d %d %s\n", tr.key, xMem, int64(xTtl.Seconds()), xType))
+			fmt.Fprintf(&buf, "%s %d %d %s\n", tr.key, xMem, int64(xTtl.Seconds()), xType)
+		}
+		if err := appendLog(&s.muScan, s.scanFile, &buf); err != nil {
+			return fmt.Errorf("failed to write scan file: %w", err)
 		}
 
 		processedKeys += int64(len(keyBatch))
@@ -171,7 +174,6 @@ func (s *Scanner) MonitorOps() error {
 
 	//Buffered channel to handle Redis monitor output
 	ch := make(chan string, 10000)
-	defer close(ch)
 
 	client, err := lib.RedisClientFromConfig(s.Config)
 	if err != nil {
@@ -185,11 +187,12 @@ func (s *Scanner) MonitorOps() error {
 
 	monitor := client.Monitor(ctxTimeout, ch)
 	monitor.Start()
-	defer monitor.Stop()
+	defer func() {
+		monitor.Stop()
+		go drainUntilIdle(ch)
+	}()
 
-	if _, err := s.monitorFile.Seek(0, io.SeekEnd); err != nil {
-		return fmt.Errorf("failed to seek monitor file: %w", err)
-	}
+	var buf bytes.Buffer
 
 	progressTicker := time.NewTicker(100 * time.Millisecond)
 	defer progressTicker.Stop()
@@ -229,19 +232,52 @@ func (s *Scanner) MonitorOps() error {
 			}
 
 			for _, key := range keys {
-				_, _ = s.monitorFile.WriteString(fmt.Sprintf("%s %s\n", key, cmd))
+				buf.WriteString(key)
+				buf.WriteByte(' ')
+				buf.WriteString(cmd)
+				buf.WriteByte('\n')
 			}
 		case <-progressTicker.C:
+			if err := appendLog(&s.muMonitor, s.monitorFile, &buf); err != nil {
+				return fmt.Errorf("failed to write monitor file: %w", err)
+			}
 			elapsed := time.Since(s.State.MonitorStartTime)
 			s.State.MonitorProgress = min(float64(elapsed)/float64(s.Config.MonitorDuration)*100, 100)
 			s.State.Updates <- s.State
 		case <-ctxTimeout.Done():
+			if err := appendLog(&s.muMonitor, s.monitorFile, &buf); err != nil {
+				return fmt.Errorf("failed to write monitor file: %w", err)
+			}
 			s.State.MonitorProgress = 100
 			s.State.TotalMonitorDuration += s.Config.MonitorDuration
 			s.State.Updates <- s.State
 			s.updateStatus("Monitoring completed")
 			log.Printf("Monitoring completed")
 			return nil
+		}
+	}
+}
+
+func appendLog(mu *sync.Mutex, f *os.File, buf *bytes.Buffer) error {
+	if buf.Len() == 0 {
+		return nil
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if _, err := f.Seek(0, io.SeekEnd); err != nil {
+		return err
+	}
+	_, err := buf.WriteTo(f)
+	buf.Reset()
+	return err
+}
+
+func drainUntilIdle(ch chan string) {
+	for {
+		select {
+		case <-ch:
+		case <-time.After(time.Second):
+			return
 		}
 	}
 }
