@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/rivo/tview"
+
 	"redscout/lib/ui/theme"
 	"redscout/lib/utils"
 	"redscout/models"
