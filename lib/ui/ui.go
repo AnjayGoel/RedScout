@@ -3,17 +3,26 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
+	"unicode"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 
 	"redscout/lib/scanner"
 	"redscout/lib/ui/theme"
 	"redscout/lib/ui/views"
 	"redscout/lib/ui/views/components"
 	"redscout/models"
-	"time"
-
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
+
+const disclaimerText = "[#f85149]DISCLAIMER[-]\n\n" +
+	"[#8b949e]RedScout will run the 'MONITOR' command on your Redis instance.[-]\n" +
+	"[#f0883e]This can impact Redis performance. Use with caution on production environments.[-]\n\n" +
+	"[#c9d1d9]Do you want to continue?[-]\n\n" +
+	"[#3fb950]Y[-]es / [#f85149]N[-]o"
+
+var spinner = []rune{'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
 
 type AppUI struct {
 	config  *models.Config
@@ -25,173 +34,155 @@ type AppUI struct {
 	headers  *views.HeaderView
 	body     *views.BodyView
 
-	loadingTextView   *tview.TextView
-	initialisedLayout bool
-	helpVisible       bool
+	loading     *tview.TextView
+	loadingDone chan struct{}
+	mainShown   bool
+	helpVisible bool
 }
 
 func NewAppUI(cfg models.Config) *AppUI {
 	app := tview.NewApplication()
-
-	ui := &AppUI{
-		config:            &cfg,
-		app:               app,
-		pages:             tview.NewPages(),
-		body:              views.NewBodyView(app),
-		headers:           views.NewHeaderView(),
-		titleBar:          views.NewTitleBar(),
-		initialisedLayout: false,
-		helpVisible:       false,
+	return &AppUI{
+		config:   &cfg,
+		app:      app,
+		pages:    tview.NewPages(),
+		titleBar: views.NewTitleBar(),
+		headers:  views.NewHeaderView(),
+		body:     views.NewBodyView(app),
 	}
-
-	return ui
 }
 
-func (ui *AppUI) createDisclaimerScreen() {
-	flex := tview.NewFlex().SetDirection(tview.FlexRow)
-	flex.SetBackgroundColor(theme.ColorBg)
+func (ui *AppUI) Run() error {
+	ui.showDisclaimer()
+	err := ui.app.Run()
+	if ui.scanner != nil {
+		ui.scanner.Close()
+	}
+	return err
+}
 
-	disclaimer := tview.NewTextView().
+func newMessageView(text string) *tview.TextView {
+	view := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("[#f85149]DISCLAIMER[-]\n\n" +
-			"[#8b949e]RedScout will run the 'MONITOR' command on your Redis instance.[-]\n" +
-			"[#f0883e]This can impact Redis performance. Use with caution on production environments.[-]\n\n" +
-			"[#c9d1d9]Do you want to continue?[-]\n\n" +
-			"[#3fb950]Y[-]es / [#f85149]N[-]o")
-	disclaimer.SetBorder(true)
-	disclaimer.SetBorderColor(theme.ColorBorder)
-	disclaimer.SetBackgroundColor(theme.ColorBg)
-	disclaimer.SetBorderPadding(2, 2, 2, 2)
+		SetText(text)
+	view.SetBorder(true)
+	view.SetBorderColor(theme.ColorBorder)
+	view.SetBackgroundColor(theme.ColorBg)
+	view.SetBorderPadding(2, 2, 2, 2)
+	return view
+}
 
-	flex.AddItem(disclaimer, 0, 1, false)
-	ui.app.SetRoot(flex, true)
-
+func (ui *AppUI) showMessage(text string, onKey func(r rune)) *tview.TextView {
+	view := newMessageView(text)
+	ui.app.SetRoot(view, true)
 	ui.app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		switch e.Rune() {
-		case 'y', 'Y', '\r':
-			ui.start()
-			return nil
-		case 'n', 'N', 'q', 'Q':
-			ui.app.Stop()
-			return nil
-		}
+		onKey(unicode.ToLower(e.Rune()))
 		return e
+	})
+	return view
+}
+
+func (ui *AppUI) showDisclaimer() {
+	ui.showMessage(disclaimerText, func(r rune) {
+		switch r {
+		case 'y', '\r':
+			ui.start()
+		case 'n', 'q':
+			ui.app.Stop()
+		}
 	})
 }
 
-func (ui *AppUI) createErrorScreen(errorMsg string) {
-	flex := tview.NewFlex().SetDirection(tview.FlexRow)
-	flex.SetBackgroundColor(theme.ColorBg)
-
-	errorText := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter).
-		SetText(fmt.Sprintf("[#f85149]ERROR[-]\n\n[#c9d1d9]%s[-]\n\n[#3fb950]R[-]etry / [#f85149]Q[-]uit", errorMsg))
-	errorText.SetBorder(true)
-	errorText.SetBorderColor(theme.ColorBorder)
-	errorText.SetBackgroundColor(theme.ColorBg)
-	errorText.SetBorderPadding(2, 2, 2, 2)
-
-	flex.AddItem(errorText, 0, 1, false)
-	ui.app.QueueUpdateDraw(func() {
-		ui.app.SetRoot(flex, true)
-	})
-
-	ui.app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		switch e.Rune() {
-		case 'r', 'R', '\r':
+func (ui *AppUI) showError(msg string) {
+	ui.stopLoading()
+	text := fmt.Sprintf("[#f85149]ERROR[-]\n\n[#c9d1d9]%s[-]\n\n[#3fb950]R[-]etry / [#f85149]Q[-]uit", tview.Escape(msg))
+	ui.showMessage(text, func(r rune) {
+		switch r {
+		case 'r', '\r':
 			ui.start()
-			return nil
-		case 'q', 'Q':
+		case 'q':
 			ui.app.Stop()
-			return nil
 		}
-		return e
 	})
 }
 
 func (ui *AppUI) start() {
-	ui.createLoadingScreen()
+	ui.loading = ui.showMessage(ui.loadingText(0), func(r rune) {
+		if r == 'q' {
+			ui.app.Stop()
+		}
+	})
+	ui.loadingDone = make(chan struct{})
+	go ui.animateLoading(ui.loadingDone)
+
 	go func() {
 		s, err := scanner.NewScanner(ui.config)
 		if err != nil {
-			ui.createErrorScreen(fmt.Sprintf("Error initializing scanner:\n%v", err))
+			ui.app.QueueUpdateDraw(func() {
+				ui.showError(fmt.Sprintf("Error initializing scanner:\n%v", err))
+			})
 			return
 		}
 		ui.scanner = s
-
 		go s.Start()
-		go ui.stateUpdateListener()
+		ui.listen(s)
 	}()
 }
 
-func (ui *AppUI) createLoadingScreen() {
-	flex := tview.NewFlex().SetDirection(tview.FlexRow)
-	flex.SetBackgroundColor(theme.ColorBg)
+func (ui *AppUI) stopLoading() {
+	if ui.loadingDone != nil {
+		close(ui.loadingDone)
+		ui.loadingDone = nil
+	}
+}
 
-	ui.loadingTextView = tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter).
-		SetText("[#f0883e]Analysing Redis ⠋\n\n[#c9d1d9]Initializing...[-]")
-	ui.loadingTextView.SetBorder(true)
-	ui.loadingTextView.SetBorderColor(theme.ColorBorder)
-	ui.loadingTextView.SetBackgroundColor(theme.ColorBg)
-	ui.loadingTextView.SetBorderPadding(2, 2, 2, 2)
+func (ui *AppUI) animateLoading(done <-chan struct{}) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 
-	flex.AddItem(ui.loadingTextView, 0, 1, false)
-	ui.app.SetRoot(flex, true)
-
-	spinner := []rune{'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
-
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		i := 0
-
-		for {
-			select {
-			case <-ticker.C:
-				ui.app.QueueUpdateDraw(func() {
-					var text string
-					if ui.scanner == nil || ui.scanner.State == nil {
-						text = fmt.Sprintf("[#f0883e]Analysing Redis %c\n\n[#c9d1d9]Initializing...[-]", spinner[i%len(spinner)])
-					} else if ui.scanner.State.ScanComplete {
-						ticker.Stop()
-						return
-					} else {
-						var progressInfo string
-
-						if ui.scanner.State.ScanProgress < 100 {
-							scanBar := components.CreateProgressBar(ui.scanner.State.ScanProgress, 100, 40)
-							progressInfo = fmt.Sprintf("\n\n[#8b949e]%s[-]\n%s\n[#c9d1d9]%d keys collected[-]", ui.scanner.State.Status, scanBar, ui.scanner.State.ScannedKeys)
-						} else if ui.scanner.State.MonitorDurationTotal == 0 {
-							progressInfo = "\n\n[#8b949e]Starting monitor...[-]"
-						} else if ui.scanner.State.MonitorProgress < 100 {
-							elapsed := time.Duration(float64(ui.scanner.State.MonitorDurationTotal) * ui.scanner.State.MonitorProgress / 100)
-							monitorBar := components.CreateProgressBar(ui.scanner.State.MonitorProgress, 100, 40)
-							progressInfo = fmt.Sprintf("\n\n[#8b949e]Monitor Progress:[-]\n%s\n[#c9d1d9]%v / %v[-]", monitorBar, elapsed.Round(time.Second), ui.scanner.State.MonitorDurationTotal)
-						}
-
-						text = fmt.Sprintf("[#f0883e]Analysing Redis %c[-]\n\n%s", spinner[i%len(spinner)], progressInfo)
-					}
-					ui.loadingTextView.SetText(text)
-				})
-				i++
-			}
+	for frame := 1; ; frame++ {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			ui.app.QueueUpdateDraw(func() {
+				ui.loading.SetText(ui.loadingText(frame))
+			})
 		}
-	}()
+	}
 }
 
-func (ui *AppUI) createMainScreen() {
+func (ui *AppUI) loadingText(frame int) string {
+	title := fmt.Sprintf("[#f0883e]Analysing Redis %c[-]\n\n", spinner[frame%len(spinner)])
+	if ui.scanner == nil {
+		return title + "[#c9d1d9]Initializing...[-]"
+	}
+
+	state := ui.scanner.State
+	status := tview.Escape(state.Status)
+	switch {
+	case state.ScanProgress < 100:
+		bar := components.CreateProgressBar(state.ScanProgress, 100, 40)
+		return title + fmt.Sprintf("[#8b949e]%s[-]\n%s\n[#c9d1d9]%d keys collected[-]", status, bar, state.ScannedKeys)
+	case state.MonitorProgress > 0 && state.MonitorProgress < 100:
+		total := ui.config.MonitorDuration
+		elapsed := time.Duration(float64(total) * state.MonitorProgress / 100)
+		bar := components.CreateProgressBar(state.MonitorProgress, 100, 40)
+		return title + fmt.Sprintf("[#8b949e]Monitor Progress:[-]\n%s\n[#c9d1d9]%v / %v[-]", bar, elapsed.Round(time.Second), total)
+	default:
+		return title + fmt.Sprintf("[#8b949e]%s[-]", status)
+	}
+}
+
+func (ui *AppUI) showMain() {
+	ui.stopLoading()
+	ui.mainShown = true
+
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
 	flex.SetBackgroundColor(theme.ColorBg)
-
 	flex.AddItem(ui.titleBar.View, 1, 0, false)
 	flex.AddItem(ui.headers.HeaderFlex, 5, 0, false)
-
-	ui.body.TabBar.SetBorder(false)
-	ui.body.TabBar.SetBorderPadding(0, 0, 0, 0)
 	flex.AddItem(ui.body.TabBar, 1, 0, false)
 
 	// Thin separator line below tabs
@@ -209,161 +200,103 @@ func (ui *AppUI) createMainScreen() {
 	ui.app.SetRoot(ui.pages, true)
 }
 
-func (ui *AppUI) stateUpdateListener() {
-	for update := range ui.scanner.State.Updates {
-		if !update.ScanComplete {
+func (ui *AppUI) listen(s *scanner.Scanner) {
+	for state := range s.State.Updates {
+		if !state.ScanComplete {
 			continue
 		}
-
 		ui.app.QueueUpdateDraw(func() {
-			if !ui.initialisedLayout {
-				ui.createMainScreen()
-				ui.initialisedLayout = true
+			if !ui.mainShown {
+				ui.showMain()
 			}
-			ui.update(update)
+			ui.refresh()
 		})
 	}
 }
 
-// fetchAndShowKeyValue fetches a key's value and shows it in the viewer.
-// If key is empty, finds the first key matching the current namespace prefix.
-func (ui *AppUI) fetchAndShowKeyValue(key string) {
-	if key == "" {
-		keys := ui.scanner.FindKeysWithPrefix(ui.scanner.State.CurrentPrefix, 1)
-		if len(keys) == 0 {
-			return
-		}
-		key = keys[0]
-	}
-	err := ui.scanner.FetchKeyValue(key)
-	if err != nil {
-		ui.scanner.State.KeyValue = &models.KeyValueInfo{
-			Key:   key,
-			Type:  "error",
-			Value: fmt.Sprintf("Failed to fetch: %v", err),
-		}
-		ui.scanner.State.Updates <- ui.scanner.State
-	}
-}
-
-func (ui *AppUI) Run() error {
-	ui.createDisclaimerScreen()
-	return ui.app.Run()
-}
-
-func (ui *AppUI) update(ctx *models.State) {
-	ui.titleBar.Update(ctx)
-	ui.headers.Update(ctx)
-	ui.body.Update(ctx)
+func (ui *AppUI) refresh() {
+	state := ui.scanner.State
+	ui.titleBar.Update(state)
+	ui.headers.Update(state)
+	ui.body.Update(state)
 }
 
 func (ui *AppUI) handleInput(e *tcell.EventKey) *tcell.EventKey {
-	if e.Rune() == '?' {
-		if ui.helpVisible {
-			ui.pages.HidePage("help")
-			ui.helpVisible = false
-		} else {
-			ui.pages.ShowPage("help")
-			ui.helpVisible = true
-		}
-		return nil
-	}
-	if e.Key() == tcell.KeyEscape && ui.helpVisible {
-		ui.pages.HidePage("help")
-		ui.helpVisible = false
+	if e.Rune() == '?' || (e.Key() == tcell.KeyEscape && ui.helpVisible) {
+		ui.toggleHelp()
 		return nil
 	}
 	if ui.helpVisible {
 		return nil
 	}
 
-	changed := true
-
 	switch e.Key() {
 	case tcell.KeyEnter, tcell.KeyRight:
-		if ui.body.IsShowingValue() {
-			return nil
-		}
-		switch ui.body.ActiveView() {
-		case "namespace":
-			row, _ := ui.body.NamespaceTable().GetSelection()
-			if row <= 0 || row > len(ui.scanner.State.NamespaceStats) {
-				return nil
-			}
-			namespace := ui.scanner.State.NamespaceStats[row-1].Namespace
-			ui.scanner.DrillDownNamespace(namespace)
-
-			// If no sub-namespaces, find a matching key and fetch its value
-			if len(ui.scanner.State.NamespaceStats) == 0 {
-				go ui.fetchAndShowKeyValue("")
-			}
-			return nil
-		case "bigkeys":
-			row, _ := ui.body.BigKeyTable().GetSelection()
-			if row <= 0 || row > len(ui.scanner.State.BigKeys) {
-				return nil
-			}
-			key := ui.scanner.State.BigKeys[row-1].Key.String()
-			go ui.fetchAndShowKeyValue(key)
-			return nil
-		case "hotkeys":
-			row, _ := ui.body.HotKeyTable().GetSelection()
-			if row <= 0 || row > len(ui.scanner.State.HotKeys) {
-				return nil
-			}
-			key := ui.scanner.State.HotKeys[row-1].Key.String()
-			go ui.fetchAndShowKeyValue(key)
-			return nil
-		}
-	case tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyLeft:
-		if ui.body.IsShowingValue() {
-			ui.scanner.State.KeyValue = nil
-			// Go back from key value view — level up past empty levels
-			if ui.body.ActiveView() == "namespace" {
-				for !ui.scanner.State.CurrentPrefix.IsEmpty() {
-					ui.scanner.LevelUpNamespace()
-					if len(ui.scanner.State.NamespaceStats) > 0 {
-						break
-					}
-				}
-			}
-			ui.body.SetActiveView(ui.body.ActiveView())
-			return nil
-		}
-		if ui.body.ActiveView() == "namespace" {
-			ui.scanner.LevelUpNamespace()
-			return nil
-		}
-	}
-
-	switch e.Rune() {
-	case '1', '2', '3', '4', '5', '6', '7', '8', 't', 'T', 'n', 'N', 'l', 'L', 'b', 'B', 'h', 'H':
-		ui.body.HandleInput(e.Rune(), ui.scanner.State)
-	case 'q', 'Q':
-		ui.app.Stop()
-		ui.scanner.Close()
+		ui.openSelection()
 		return nil
-	case 's', 'S':
-		go func() {
-			err := ui.scanner.ScanMemory()
-			if err == nil {
-				_ = ui.scanner.ComputeNamespaceStats()
-				_ = ui.scanner.ComputeBigKeysFromScanLog()
-			}
-		}()
-	case 'm', 'M':
-		go func() {
-			err := ui.scanner.MonitorOps()
-			if err == nil {
-				_ = ui.scanner.ComputeNamespaceStats()
-				_ = ui.scanner.ComputeHotKeysFromMonitorLog()
-			}
-		}()
+	case tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyLeft:
+		ui.goBack()
+		return nil
+	}
+
+	switch key := unicode.ToLower(e.Rune()); key {
+	case 'q':
+		ui.app.Stop()
+	case 's':
+		go ui.scanner.Rescan()
+	case 'm':
+		go ui.scanner.Remonitor()
 	default:
-		changed = false
+		if !ui.body.HandleKey(key, ui.scanner.State) {
+			return e
+		}
+		ui.refresh()
 	}
-	if changed {
-		ui.update(ui.scanner.State)
+	return nil
+}
+
+func (ui *AppUI) toggleHelp() {
+	ui.helpVisible = !ui.helpVisible
+	if ui.helpVisible {
+		ui.pages.ShowPage("help")
+	} else {
+		ui.pages.HidePage("help")
 	}
-	return e
+}
+
+func (ui *AppUI) openSelection() {
+	if ui.body.IsShowingValue() {
+		return
+	}
+
+	state := ui.scanner.State
+	i := ui.body.SelectedIndex()
+	if i < 0 {
+		return
+	}
+
+	switch ui.body.ActiveView() {
+	case views.TabNamespace:
+		if i < len(state.NamespaceStats) {
+			ui.scanner.DrillDownNamespace(state.NamespaceStats[i].Namespace)
+		}
+	case views.TabBigKeys:
+		if i < len(state.BigKeys) {
+			go ui.scanner.FetchKeyValue(state.BigKeys[i].Key)
+		}
+	case views.TabHotKeys:
+		if i < len(state.HotKeys) {
+			go ui.scanner.FetchKeyValue(state.HotKeys[i].Key)
+		}
+	}
+}
+
+func (ui *AppUI) goBack() {
+	if ui.body.IsShowingValue() {
+		ui.scanner.State.KeyValue = nil
+		ui.body.HideKeyValue()
+	}
+	if ui.body.ActiveView() == views.TabNamespace {
+		ui.scanner.LevelUpNamespace()
+	}
 }

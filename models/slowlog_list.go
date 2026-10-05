@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/redis/go-redis/v9"
 	"sort"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type SlowLogList []redis.SlowLog

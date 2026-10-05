@@ -38,16 +38,11 @@ func DefaultConfig() Config {
 		}
 	}
 
-	password := os.Getenv("REDIS_PASSWORD")
-	if password == "" {
-		password = ""
-	}
-
 	return Config{
 		RedisHost:       host,
 		RedisPort:       port,
 		RedisUser:       "default",
-		RedisPassword:   password,
+		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
 		RedisDB:         0,
 		UseTLS:          false,
 		KeysScanSize:    5000,

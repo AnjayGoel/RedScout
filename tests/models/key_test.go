@@ -1,8 +1,9 @@
 package models_test
 
 import (
-	"redscout/models"
 	"testing"
+
+	"redscout/models"
 )
 
 func TestNewKey(t *testing.T) {
