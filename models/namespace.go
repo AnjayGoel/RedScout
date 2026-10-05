@@ -1,7 +1,9 @@
 package models
 
 import (
+	"slices"
 	"sort"
+	"time"
 )
 
 type NamespaceSnapshot struct {
@@ -25,45 +27,47 @@ type NamespaceMetrics struct {
 	Types      []string
 }
 
-func (r *NamespaceSnapshot) ToMetric(s *State) *NamespaceMetrics {
-	if s.ScannedKeys == 0 || r.Keys == 0 {
-		return &NamespaceMetrics{
-			Namespace: r.Namespace,
-			Types:     r.Types,
-			Ops:       make(map[OpType]float64),
+func NewNamespaceSnapshot(namespace string) *NamespaceSnapshot {
+	return &NamespaceSnapshot{Namespace: namespace, OpsFrequency: make(map[string]int64)}
+}
+
+func (r *NamespaceSnapshot) AddSample(memory, ttl int64, keyType string) {
+	r.Keys++
+	r.TotalMemory += memory
+	if ttl > 0 {
+		r.KeysWithTTL++
+		r.TotalTTL += ttl
+	}
+	if !slices.Contains(r.Types, keyType) {
+		r.Types = append(r.Types, keyType)
+	}
+}
+
+func (r *NamespaceSnapshot) ToMetric(totalKeys, sampledKeys int64, monitored time.Duration) *NamespaceMetrics {
+	m := &NamespaceMetrics{
+		Namespace: r.Namespace,
+		Types:     r.Types,
+		Ops:       make(map[OpType]float64),
+	}
+
+	if r.Keys > 0 && sampledKeys > 0 {
+		m.EstKeys = totalKeys * r.Keys / sampledKeys
+		m.MemPerKey = float64(r.TotalMemory) / float64(r.Keys)
+		m.EstMemory = int64(float64(m.EstKeys) * m.MemPerKey)
+		m.TTLPercent = float64(r.KeysWithTTL) / float64(r.Keys)
+	}
+	if r.KeysWithTTL > 0 {
+		m.AvgTTL = r.TotalTTL / r.KeysWithTTL
+	}
+
+	if seconds := monitored.Seconds(); seconds > 0 {
+		for command, count := range r.OpsFrequency {
+			m.Ops[GetOpType(command)] += float64(count) / seconds
 		}
 	}
+	m.Ops[TotalOp] = m.Ops[GetOp] + m.Ops[SetOp] + m.Ops[DelOp] + m.Ops[EvalOp]
 
-	processed := &NamespaceMetrics{}
-
-	totalKeys := s.Keyspace().Keys
-
-	processed.Namespace = r.Namespace
-	processed.EstKeys = (totalKeys * r.Keys) / s.ScannedKeys
-	processed.MemPerKey = float64(r.TotalMemory) / float64(r.Keys)
-	processed.EstMemory = int64(float64(processed.EstKeys) * processed.MemPerKey)
-	processed.TTLPercent = float64(r.KeysWithTTL) / float64(r.Keys)
-
-	if r.KeysWithTTL == 0 {
-		processed.AvgTTL = 0
-	} else {
-		processed.AvgTTL = r.TotalTTL / r.KeysWithTTL
-	}
-
-	processed.Ops = make(map[OpType]float64)
-	for op, count := range r.OpsFrequency {
-		processed.Ops[GetOpType(op)] += float64(count)
-	}
-
-	if s.TotalMonitorDuration > 0 {
-		for opType, count := range processed.Ops {
-			processed.Ops[opType] = count / s.TotalMonitorDuration.Seconds()
-		}
-	}
-	processed.Ops[TotalOp] = processed.Ops[GetOp] + processed.Ops[SetOp] + processed.Ops[DelOp] + processed.Ops[EvalOp]
-
-	processed.Types = r.Types
-	return processed
+	return m
 }
 
 type NamespaceMetricList []*NamespaceMetrics

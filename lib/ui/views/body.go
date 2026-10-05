@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/rivo/tview"
+
 	"redscout/lib/ui/theme"
 	"redscout/lib/ui/views/components"
 	"redscout/models"
@@ -18,36 +19,16 @@ const (
 	TabHotKeys   Tab = "hotkeys"
 )
 
-type BodyView struct {
-	ContentFlex  *tview.Flex
-	namespace    *components.Namespace
-	slowLog      *components.SlowLogTable
-	activeView   Tab
-	TabBar       *tview.TextView
-	app          *tview.Application
-	bigKeyTable  *tview.Table
-	hotKeyTable  *tview.Table
-	keyValueView *components.KeyValueView
-	showingValue bool
+var tabOrder = []Tab{TabNamespace, TabSlowLog, TabBigKeys, TabHotKeys}
+
+var tabShortcuts = map[rune]Tab{
+	'n': TabNamespace,
+	'l': TabSlowLog,
+	'b': TabBigKeys,
+	'h': TabHotKeys,
 }
 
-func NewBodyView(app *tview.Application) *BodyView {
-	view := &BodyView{
-		app:          app,
-		ContentFlex:  newContentFlex(),
-		namespace:    components.NewNamespace(),
-		slowLog:      components.NewSlowLogTable(),
-		activeView:   TabNamespace,
-		TabBar:       newTabBar(),
-		bigKeyTable:  components.NewBigKeyTable(),
-		hotKeyTable:  components.NewHotKeyTable(),
-		keyValueView: components.NewKeyValueView(),
-	}
-	view.SetActiveView(TabNamespace)
-	return view
-}
-
-var namespaceSortKeyMap = map[rune]string{
+var namespaceSortColumns = map[rune]string{
 	'1': "Keys",
 	'2': "Memory",
 	'3': "TTL",
@@ -58,26 +39,45 @@ var namespaceSortKeyMap = map[rune]string{
 	'8': "Total Ops",
 }
 
-var slowLogSortKeyMap = map[rune]string{
+var slowLogSortColumns = map[rune]string{
 	'1': "ID",
 	'2': "Timestamp",
 	'3': "Duration",
 	'4': "Command",
 }
 
-func newContentFlex() *tview.Flex {
-	f := tview.NewFlex().SetDirection(tview.FlexColumn)
-	f.SetBackgroundColor(theme.ColorBg)
-	return f
+type BodyView struct {
+	ContentFlex  *tview.Flex
+	TabBar       *tview.TextView
+	app          *tview.Application
+	namespace    *components.Namespace
+	slowLog      *components.SlowLogTable
+	bigKeyTable  *tview.Table
+	hotKeyTable  *tview.Table
+	keyValueView *components.KeyValueView
+	activeView   Tab
+	showingValue bool
 }
 
-func newTabBar() *tview.TextView {
-	tb := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	tb.SetBackgroundColor(theme.ColorBg)
-	tb.SetBorderPadding(0, 0, 0, 0)
-	return tb
+func NewBodyView(app *tview.Application) *BodyView {
+	contentFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
+	contentFlex.SetBackgroundColor(theme.ColorBg)
+
+	tabBar := tview.NewTextView().SetDynamicColors(true)
+	tabBar.SetBackgroundColor(theme.ColorBg)
+
+	view := &BodyView{
+		ContentFlex:  contentFlex,
+		TabBar:       tabBar,
+		app:          app,
+		namespace:    components.NewNamespace(),
+		slowLog:      components.NewSlowLogTable(),
+		bigKeyTable:  components.NewBigKeyTable(),
+		hotKeyTable:  components.NewHotKeyTable(),
+		keyValueView: components.NewKeyValueView(),
+	}
+	view.SetActiveView(TabNamespace)
+	return view
 }
 
 func tabLabel(name string, key string, active bool) string {
@@ -93,12 +93,11 @@ func (b *BodyView) updateTabBar() {
 	// Vertical dividers between tabs (not on the outer edges) so the row
 	// reads as a bar of selectable tabs.
 	div := "[#7d8590]│[-]"
-	tabs := fmt.Sprintf(" %s %s %s %s %s %s %s",
+	b.TabBar.SetText(fmt.Sprintf(" %s %s %s %s %s %s %s",
 		tabLabel("Namespaces", "N", b.activeView == TabNamespace),
 		div, tabLabel("Slow Log", "L", b.activeView == TabSlowLog),
 		div, tabLabel("Big Keys", "B", b.activeView == TabBigKeys),
-		div, tabLabel("Hot Keys", "H", b.activeView == TabHotKeys))
-	b.TabBar.SetText(tabs)
+		div, tabLabel("Hot Keys", "H", b.activeView == TabHotKeys)))
 }
 
 func (b *BodyView) SetActiveView(view Tab) {
@@ -114,121 +113,99 @@ func (b *BodyView) showView(view Tab, resetSelection bool) {
 	b.showingValue = false
 	b.updateTabBar()
 
-	var content tview.Primitive
-	var table *tview.Table
-	switch view {
-	case TabNamespace:
-		content, table = b.namespace.Flex, b.namespace.Table
-	case TabSlowLog:
-		content, table = b.slowLog.Table, b.slowLog.Table
-	case TabBigKeys:
-		content, table = b.bigKeyTable, b.bigKeyTable
-	case TabHotKeys:
-		content, table = b.hotKeyTable, b.hotKeyTable
-	default:
-		return
+	table := b.activeTable()
+	var content tview.Primitive = table
+	if view == TabNamespace {
+		content = b.namespace.Flex
 	}
 
-	b.ContentFlex.Clear().AddItem(content, 0, 2, true)
+	b.ContentFlex.Clear().AddItem(content, 0, 1, true)
 	if resetSelection {
 		table.Select(1, 0)
 	}
 	b.app.SetFocus(table)
 }
 
-func (b *BodyView) ToggleView() {
+func (b *BodyView) activeTable() *tview.Table {
+	switch b.activeView {
+	case TabSlowLog:
+		return b.slowLog.Table
+	case TabBigKeys:
+		return b.bigKeyTable
+	case TabHotKeys:
+		return b.hotKeyTable
+	default:
+		return b.namespace.Table
+	}
+}
+
+func (b *BodyView) nextTab() Tab {
+	for i, tab := range tabOrder {
+		if tab == b.activeView {
+			return tabOrder[(i+1)%len(tabOrder)]
+		}
+	}
+	return TabNamespace
+}
+
+func (b *BodyView) Update(state *models.State) {
+	b.slowLog.Update(state.SlowLogs)
+	b.namespace.Update(state.CurrentPrefix, state.NamespaceStats)
+	components.UpdateBigKeyTable(b.bigKeyTable, state.BigKeys)
+	components.UpdateHotKeyTable(b.hotKeyTable, state.HotKeys)
+
+	if state.KeyValue != nil {
+		b.showKeyValue(state.KeyValue)
+	}
+}
+
+func (b *BodyView) showKeyValue(info *models.KeyValueInfo) {
+	b.keyValueView.Update(info)
+	if b.showingValue {
+		return
+	}
+	b.showingValue = true
+	b.ContentFlex.Clear().AddItem(b.keyValueView.View, 0, 1, true)
+	b.app.SetFocus(b.keyValueView.View)
+}
+
+func (b *BodyView) HandleKey(key rune, state *models.State) bool {
+	if key == 't' {
+		state.KeyValue = nil
+		b.SetActiveView(b.nextTab())
+		return true
+	}
+	if tab, ok := tabShortcuts[key]; ok {
+		state.KeyValue = nil
+		b.SetActiveView(tab)
+		return true
+	}
+
 	switch b.activeView {
 	case TabNamespace:
-		b.SetActiveView(TabSlowLog)
+		if column, ok := namespaceSortColumns[key]; ok {
+			state.NamespaceSort = column
+			state.NamespaceStats.Sort(column)
+			return true
+		}
 	case TabSlowLog:
-		b.SetActiveView(TabBigKeys)
-	case TabBigKeys:
-		b.SetActiveView(TabHotKeys)
-	default:
-		b.SetActiveView(TabNamespace)
-	}
-}
-
-func (b *BodyView) Update(data *models.State) {
-	b.slowLog.Update(data.SlowLogs)
-	b.namespace.Update(data.CurrentPrefix, data.NamespaceStats)
-	components.UpdateBigKeyTable(b.bigKeyTable, data.BigKeys)
-	components.UpdateHotKeyTable(b.hotKeyTable, data.HotKeys)
-
-	// Show key value viewer when key value data is available
-	if data.KeyValue != nil && !b.showingValue {
-		b.ShowKeyValue(data.KeyValue)
-	} else if data.KeyValue != nil && b.showingValue {
-		b.keyValueView.Update(data.KeyValue)
-	}
-}
-
-func (b *BodyView) IsShowingValue() bool {
-	return b.showingValue
-}
-
-func (b *BodyView) HandleInput(inp rune, state *models.State) {
-	switch inp {
-	case 'T', 't':
-		state.KeyValue = nil
-		b.ToggleView()
-		return
-	case 'B', 'b':
-		state.KeyValue = nil
-		b.SetActiveView(TabBigKeys)
-		return
-	case 'H', 'h':
-		state.KeyValue = nil
-		b.SetActiveView(TabHotKeys)
-		return
-	case 'N', 'n':
-		state.KeyValue = nil
-		b.SetActiveView(TabNamespace)
-		return
-	case 'L', 'l':
-		state.KeyValue = nil
-		b.SetActiveView(TabSlowLog)
-		return
-	}
-	if inp > '8' || inp < '1' {
-		return
-	}
-	key := ""
-	if b.activeView == TabNamespace {
-		key = namespaceSortKeyMap[inp]
-		if key == "" {
-			return
+		if column, ok := slowLogSortColumns[key]; ok {
+			state.SlowLogs.Sort(column)
+			return true
 		}
-		state.NamespaceStats.Sort(key)
-	} else if b.activeView == TabSlowLog {
-		key = slowLogSortKeyMap[inp]
-		if key == "" {
-			return
-		}
-		state.SlowLogs.Sort(key)
 	}
-	b.Update(state)
+	return false
 }
 
 func (b *BodyView) ActiveView() Tab {
 	return b.activeView
 }
 
-func (b *BodyView) NamespaceTable() *tview.Table {
-	return b.namespace.Table
+func (b *BodyView) IsShowingValue() bool {
+	return b.showingValue
 }
 
-func (b *BodyView) BigKeyTable() *tview.Table {
-	return b.bigKeyTable
-}
-
-func (b *BodyView) HotKeyTable() *tview.Table {
-	return b.hotKeyTable
-}
-
-func (b *BodyView) ShowKeyValue(info *models.KeyValueInfo) {
-	b.showingValue = true
-	b.keyValueView.Update(info)
-	b.ContentFlex.Clear().AddItem(b.keyValueView.View, 0, 1, true)
-	b.app.SetFocus(b.keyValueView.View)
+func (b *BodyView) SelectedIndex() int {
+	row, _ := b.activeTable().GetSelection()
+	return row - 1
 }

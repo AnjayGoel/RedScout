@@ -19,9 +19,13 @@ lib/
   constants.go              # Scan batch sizes
   redis.go                  # Redis client factory
   scanner/
-    scanner.go              # Scanner lifecycle (Start, Close)
-    commands.go             # Redis commands (ScanMemory, MonitorOps, FetchRedisInfo)
-    analytics.go            # Data processing (namespace stats, big/hot keys)
+    scanner.go              # Scanner lifecycle (Start, Close, Rescan, Remonitor, navigation)
+    store.go                # In-memory key samples + per-key command counts
+    scan.go                 # SCAN + MEMORY USAGE/TTL/TYPE sampling
+    monitor.go              # MONITOR capture into the store
+    info.go                 # INFO refresh + SLOWLOG
+    keyvalue.go             # Key value preview
+    analytics.go            # Namespace stats, big/hot keys from the store
   ui/
     ui.go                   # Root AppUI, screen management, input handling
     theme/theme.go          # GitHub Dark color constants (tcell)
@@ -35,6 +39,7 @@ lib/
         bigkeys_table.go    # Big keys table (Key, Size, Type, TTL)
         hotkeys_table.go    # Hot keys table (Key, Ops/s, Command)
         slowlog_table.go    # Slow log table
+        table.go            # Shared table setup + row rendering
         progress_bar.go     # Progress bar renderer
 models/
   state.go                  # Application state + update channel
@@ -42,8 +47,9 @@ models/
   redis_info.go             # Redis INFO parser
   namespace.go              # Namespace metrics + estimation
   ops_map.go                # Redis command → GET/SET/DEL categorization
-  special_keys.go           # BigKey, HotKey structs + min-heaps
+  special_keys.go           # BigKey, HotKey structs
   key.go                    # Key parsing, namespace extraction
+  monitor.go                # MONITOR line parser (DB, command, keys)
   slowlog_list.go           # SlowLog wrapper
 ```
 
@@ -57,9 +63,10 @@ go test ./...
 
 ## Key Architecture Decisions
 
-- **Scanner ↔ UI communication:** Scanner sends state updates via `models.State.Updates` channel. UI listens in `stateUpdateListener` goroutine.
+- **Scanner ↔ UI communication:** Scanner publishes a coalesced, non-blocking notification on `models.State.Updates` (buffer 1); the UI `listen` goroutine redraws from the shared state.
+- **In-memory store:** Scan samples and MONITOR counts (per key + command, not per op) live in `scanner.store`; nothing is written to disk except the debug log.
 - **Namespace estimation:** Keys are sampled (not full scan), metrics extrapolated based on sample ratio.
-- **Multi-key commands:** MGET/MSET/DEL etc. are split into individual key operations in the monitor parser.
+- **Multi-key commands:** MGET/MSET/DEL/EVAL etc. are split into individual key operations in `models.ParseMonitorLine`; MONITOR lines from other DBs are ignored.
 - **Ops categorization:** All Redis commands mapped to GET/SET/DEL/EVAL in `models/ops_map.go`.
 - **Theme:** All colors defined as tcell RGB vars in `lib/ui/theme/theme.go`. UI uses tview dynamic color tags (`[#hex]`).
 

@@ -61,7 +61,7 @@ Download the appropriate binary for your platform from the releases page.
 
 | Flag          | Type   | Default         | Description                                |
 |---------------|--------|-----------------|--------------------------------------------|
-| `--logs-dir`  | string | _OS's temp dir_ | Directory to store temporary analysis logs |
+| `--logs-dir`  | string | _OS's temp dir_ | Directory to store the debug log |
 
 ## Keyboard Shortcuts
 

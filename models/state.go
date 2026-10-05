@@ -20,6 +20,7 @@ type State struct {
 
 	//Current Prefix and its analysis
 	NamespaceStats NamespaceMetricList
+	NamespaceSort  string
 
 	// Special Keys for Debugging and Analysis
 	SlowLogs SlowLogList
@@ -37,34 +38,17 @@ type State struct {
 	ScanComplete bool
 
 	// Tracking progress of operations
-	TotalKeysToScan      int64
-	ScanProgress         float64 // 0-100
-	MonitorStartTime     time.Time
-	MonitorProgress      float64 // 0-100
-	MonitorDurationTotal time.Duration
+	ScanProgress    float64 // 0-100
+	MonitorProgress float64 // 0-100
 }
 
 func NewState(db int) *State {
 	return &State{
-		DB:                   db,
-		CurrentPrefix:        Key{},
-		LastInfoCheck:        time.Time{},
-		TotalMonitorDuration: 0,
-		Cursor:               0,
-		ScannedKeys:          0,
-		RedisInfo:            &RedisInfo{},
-		NamespaceStats:       NamespaceMetricList{},
-		SlowLogs:             SlowLogList{},
-		HotKeys:              HotKeyList{},
-		BigKeys:              BigKeyList{},
-		Updates:              make(chan *State, 100), // Buffered channel for updates
-		Status:               "Initializing",
-		ScanComplete:         false,
-		TotalKeysToScan:      0,
-		ScanProgress:         0,
-		MonitorStartTime:     time.Time{},
-		MonitorProgress:      0,
-		MonitorDurationTotal: 0,
+		DB:            db,
+		RedisInfo:     &RedisInfo{},
+		NamespaceSort: "Keys",
+		Updates:       make(chan *State, 1), // Buffered channel for updates
+		Status:        "Initializing",
 	}
 }
 

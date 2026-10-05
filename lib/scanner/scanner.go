@@ -4,38 +4,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
-	"github.com/redis/go-redis/v9"
+	"io"
 	"log"
 	"os"
+	"sync"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/redis/go-redis/v9"
+
 	"redscout/lib"
 	"redscout/models"
-	"sync"
 )
+
+var ErrBusy = errors.New("operation already in progress")
+
+var minRedisVersion = semver.MustParse("4.0.0")
 
 type Scanner struct {
 	Config *models.Config
-	kp     *models.KeyParser
+	State  *models.State
 
+	kp      *models.KeyParser
+	redis   *redis.Client
+	store   *store
 	ctx     context.Context
 	cancel  context.CancelFunc
 	logFile *os.File
 
-	State *models.State
-
-	redis        *redis.Client
 	muInfo       sync.Mutex
 	muScanRun    sync.Mutex
 	muMonitorRun sync.Mutex
-
-	monitorFile *os.File
-	muMonitor   sync.Mutex
-
-	scanFile *os.File
-	muScan   sync.Mutex
+	muNamespace  sync.Mutex
 }
-
-var ErrBusy = errors.New("operation already in progress")
 
 func NewScanner(cfg *models.Config) (*Scanner, error) {
 	client, err := lib.RedisClientFromConfig(cfg)
@@ -45,141 +45,141 @@ func NewScanner(cfg *models.Config) (*Scanner, error) {
 
 	logFile, err := os.CreateTemp(cfg.LogsDir, "redscout_log_")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create logFile file: %w", err)
+		_ = client.Close()
+		return nil, fmt.Errorf("failed to create log file: %w", err)
 	}
 	log.SetOutput(logFile)
 
-	monitorFile, err := os.CreateTemp(cfg.LogsDir, "redscout_monitor_")
-	if err != nil {
-		return nil, err
-	}
-
-	scanFile, err := os.CreateTemp(cfg.LogsDir, "redscout_scan_")
-
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Scanner{
-		Config: cfg,
-		kp:     models.NewKeyParser(cfg.Delimiter, cfg.IDPatterns),
-
+	return &Scanner{
+		Config:  cfg,
+		State:   models.NewState(cfg.RedisDB),
+		kp:      models.NewKeyParser(cfg.Delimiter, cfg.IDPatterns),
+		redis:   client,
+		store:   newStore(),
 		ctx:     ctx,
 		cancel:  cancel,
 		logFile: logFile,
-
-		redis: client,
-
-		State: models.NewState(cfg.RedisDB),
-
-		monitorFile: monitorFile,
-		muMonitor:   sync.Mutex{},
-
-		scanFile: scanFile,
-		muScan:   sync.Mutex{},
-	}
-
-	return s, nil
+	}, nil
 }
 
 func (s *Scanner) Close() {
-	if s.redis != nil {
-		_ = s.redis.Close()
-	}
 	s.cancel()
+	_ = s.redis.Close()
 	log.Printf("Scanner closed")
+	log.SetOutput(io.Discard)
+	_ = s.logFile.Close()
+}
+
+func (s *Scanner) publish() {
+	select {
+	case s.State.Updates <- s.State:
+	default:
+	}
 }
 
 func (s *Scanner) updateStatus(status string) {
 	s.State.Status = status
-	s.State.Updates <- s.State
+	s.publish()
 }
 
 func (s *Scanner) Start() {
 	s.updateStatus("Fetching redis info")
-	err := s.FetchRedisInfo()
-	if err != nil {
+	if err := s.FetchRedisInfo(); err != nil {
 		s.updateStatus(fmt.Sprintf("Error fetching Redis info: %v", err))
 		return
 	}
-	ver := semver.MustParse(s.State.RedisInfo.Server.RedisVersion)
-	if ver.LessThan(semver.MustParse("4.0.0")) {
-		log.Fatalf("unsupported Redis version: %s, must be at least v4.0.0", s.State.RedisInfo.Server.RedisVersion)
+	version := s.State.RedisInfo.Server.RedisVersion
+	if v, err := semver.NewVersion(version); err == nil && v.LessThan(minRedisVersion) {
+		s.updateStatus(fmt.Sprintf("Unsupported Redis version %s, need at least %s", version, minRedisVersion))
+		return
 	}
 
 	//Redis stats info
 	go s.InfoUpdates()
 
 	//Scan to analyse memory usage & keys
-	err = s.ScanMemory()
-	if err != nil {
+	if err := s.ScanMemory(); err != nil {
 		s.updateStatus(fmt.Sprintf("Error scanning memory: %v", err))
 		return
 	}
 
 	// Start Monitor to analyze operations
-	err = s.MonitorOps()
-	if err != nil {
+	if err := s.MonitorOps(); err != nil {
 		s.updateStatus(fmt.Sprintf("Error monitoring operations: %v", err))
 		return
 	}
 
 	s.updateStatus("Computing statistics")
 
-	err = s.FetchSlowLog()
-	if err != nil {
-		s.updateStatus(fmt.Sprintf("Error fetching slow logFile: %v", err))
+	if err := s.FetchSlowLog(); err != nil {
+		s.updateStatus(fmt.Sprintf("Error fetching slow log: %v", err))
 	}
-
-	err = s.ComputeNamespaceStats()
-	if err != nil {
-		s.updateStatus(fmt.Sprintf("Error generating namespace stats: %v", err))
-	}
-
-	err = s.ComputeBigKeysFromScanLog()
-	if err != nil {
-		s.updateStatus(fmt.Sprintf("Error computing big keys from scan log: %v", err))
-		return
-	}
-	err = s.ComputeHotKeysFromMonitorLog()
-	if err != nil {
-		s.updateStatus(fmt.Sprintf("Error computing keys from monitor log: %v", err))
-		return
-	}
+	s.ComputeNamespaceStats()
+	s.ComputeBigKeys()
+	s.ComputeHotKeys()
 
 	s.State.ScanComplete = true
 	s.updateStatus("Initial data load complete")
 }
 
-func (s *Scanner) DrillDownNamespace(namespace string) {
-	currentPrefix := s.State.CurrentPrefix
+func (s *Scanner) Rescan() {
+	if err := s.ScanMemory(); err != nil {
+		if !errors.Is(err, ErrBusy) {
+			s.updateStatus(fmt.Sprintf("Error scanning memory: %v", err))
+		}
+		return
+	}
+	s.ComputeNamespaceStats()
+	s.ComputeBigKeys()
+}
 
-	newPrefix, err := s.kp.Append(currentPrefix, namespace, true)
+func (s *Scanner) Remonitor() {
+	if err := s.MonitorOps(); err != nil {
+		if !errors.Is(err, ErrBusy) {
+			s.updateStatus(fmt.Sprintf("Error monitoring operations: %v", err))
+		}
+		return
+	}
+	s.ComputeNamespaceStats()
+	s.ComputeHotKeys()
+}
+
+func (s *Scanner) DrillDownNamespace(namespace string) {
+	s.muNamespace.Lock()
+	defer s.muNamespace.Unlock()
+
+	newPrefix, err := s.kp.Append(s.State.CurrentPrefix, namespace, true)
 	if err != nil {
 		return
 	}
-
-	log.Printf("Drilling down into namespace: %s with new prefix: %s\n", namespace, newPrefix)
+	log.Printf("Drilling down into namespace %s, prefix %s", namespace, newPrefix)
 
 	s.State.CurrentPrefix = newPrefix
-	_ = s.ComputeNamespaceStats()
+	s.computeNamespaceStats()
+
+	// If no sub-namespaces, find a matching key and fetch its value
+	if len(s.State.NamespaceStats) == 0 {
+		if key, ok := s.store.firstKeyWithPrefix(s.kp, newPrefix); ok {
+			go s.FetchKeyValue(key)
+		}
+	}
 }
 
 func (s *Scanner) LevelUpNamespace() {
-	currentPrefix := s.State.CurrentPrefix
-	if currentPrefix.IsEmpty() {
+	s.muNamespace.Lock()
+	defer s.muNamespace.Unlock()
+
+	if s.State.CurrentPrefix.IsEmpty() {
 		return
 	}
-
-	newPrefix, err := currentPrefix.Pop()
+	newPrefix, err := s.State.CurrentPrefix.Pop()
 	if err != nil {
 		return
 	}
-
-	log.Printf("Going one level up from prefix: %s to new prefix: %s\n", currentPrefix, newPrefix)
+	log.Printf("Going up from prefix %s to %s", s.State.CurrentPrefix, newPrefix)
 
 	s.State.KeyValue = nil
 	s.State.CurrentPrefix = newPrefix
-	_ = s.ComputeNamespaceStats()
+	s.computeNamespaceStats()
 }
