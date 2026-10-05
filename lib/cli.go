@@ -3,14 +3,15 @@ package lib
 import (
 	"flag"
 	"fmt"
-	"redscout/models"
 	"regexp"
 	"strings"
 	"time"
+
+	"redscout/models"
 )
 
 // ParseFlags parses command line flags and returns a config
-func ParseFlags() models.Config {
+func ParseFlags() (models.Config, error) {
 	config := models.DefaultConfig()
 
 	// Redis connection flags (standard redis-cli shorthands)
@@ -41,7 +42,7 @@ func ParseFlags() models.Config {
 
 	// Validate flag values
 	if err := validateFlags(&config, monitorDuration, refreshInterval); err != nil {
-		panic(err)
+		return config, err
 	}
 
 	config.MonitorDuration = time.Duration(monitorDuration) * time.Second
@@ -55,13 +56,13 @@ func ParseFlags() models.Config {
 
 		regex, err := regexp.Compile("^" + pattern + "$")
 		if err != nil {
-			panic("Invalid regex pattern: " + pattern)
+			return config, fmt.Errorf("invalid id-regex pattern %q: %w", pattern, err)
 		}
 
 		config.IDPatterns = append(config.IDPatterns, regex)
 	}
 
-	return config
+	return config, nil
 }
 
 // validateFlags validates the parsed flag values

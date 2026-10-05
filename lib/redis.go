@@ -3,20 +3,22 @@ package lib
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
+	"net"
+	"strconv"
+
 	"github.com/redis/go-redis/v9"
+
 	"redscout/models"
 )
 
 func RedisClientFromConfig(config *models.Config) (*redis.Client, error) {
-	tlsConf := &tls.Config{}
-	if !config.UseTLS {
-		tlsConf = nil
+	var tlsConf *tls.Config
+	if config.UseTLS {
+		tlsConf = &tls.Config{}
 	}
 
-	addr := fmt.Sprintf("%s:%d", config.RedisHost, config.RedisPort)
 	client := redis.NewClient(&redis.Options{
-		Addr:       addr,
+		Addr:       net.JoinHostPort(config.RedisHost, strconv.Itoa(config.RedisPort)),
 		ClientName: "redscout",
 		Username:   config.RedisUser,
 		Password:   config.RedisPassword,
@@ -24,6 +26,9 @@ func RedisClientFromConfig(config *models.Config) (*redis.Client, error) {
 		TLSConfig:  tlsConf,
 	})
 
-	err := client.Ping(context.Background()).Err()
-	return client, err
+	if err := client.Ping(context.Background()).Err(); err != nil {
+		_ = client.Close()
+		return nil, err
+	}
+	return client, nil
 }
